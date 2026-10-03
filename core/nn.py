@@ -19,6 +19,33 @@ class Module:
     def named_parameters(self):
         return []
 
+    def children(self):
+        for _name, _child in self.named_children():
+            yield _child
+
+    def named_children(self):
+        return []
+
+    def modules(self):
+        yield self
+        for child in self.children():
+            if hasattr(child, "modules"):
+                yield from child.modules()
+            else:
+                yield child
+
+    def named_modules(self):
+        yield "", self
+        for child in self.children():
+            if hasattr(child, "named_modules"):
+                for cname, cmod in child.named_modules():
+                    if cname:
+                        yield f"{cname}", cmod
+                    else:
+                        yield cname, cmod
+            else:
+                yield "", child
+
     def zero_grad(self):
         return self
 
@@ -133,11 +160,22 @@ class Sequential(Module):
             out = layer(out) if hasattr(layer, "__call__") else layer.forward(out)
         return out
 
+    def named_children(self):
+        for i, layer in enumerate(self.layers):
+            yield str(i), layer
+
+    def children(self):
+        for _name, child in self.named_children():
+            yield child
+
     def named_parameters(self):
         for i, layer in enumerate(self.layers):
             if hasattr(layer, "named_parameters"):
                 for name, param in layer.named_parameters():
-                    yield f"{i}.{name}", param
+                    if name:
+                        yield f"{i}.{name}", param
+                    else:
+                        yield f"{i}", param
             elif hasattr(layer, "parameters"):
                 for j, param in enumerate(layer.parameters()):
                     yield f"{i}.param{j}", param

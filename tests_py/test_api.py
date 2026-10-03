@@ -125,3 +125,49 @@ def test_numerical_gradients_bce():
     num_grad = (loss1 - loss2) / (2*eps)
     anal = np.array(l.grad_weights())[0]
     assert abs(num_grad - anal) < 1e-4
+
+
+def test_linear_grad_biases_numerical():
+    from core import nn, losses
+    import numpy as np
+    np.random.seed(7)
+    l = nn.Linear(2, 2, activation='tanh', weights=np.array([0.1, -0.2, 0.3, 0.4]), bias=np.array([0.05, -0.1]))
+    x = np.array([0.8, -0.3])
+    y = np.array([0.4, 0.6])
+    loss_fn = losses.MSELoss()
+    h = l(x)
+    loss, g = loss_fn(h, y)
+    _ = l.backward(g)
+    eps = 1e-6
+    b = np.array(l.biases(), dtype=float)
+    # bias[0]
+    b1 = b.copy(); b1[0] += eps
+    l2 = nn.Linear(2, 2, activation='tanh', weights=l.weights(), bias=b1)
+    loss1, _ = loss_fn(l2(x), y)
+    b2 = b.copy(); b2[0] -= eps
+    l3 = nn.Linear(2, 2, activation='tanh', weights=l.weights(), bias=b2)
+    loss2, _ = loss_fn(l3(x), y)
+    num_grad = (loss1 - loss2) / (2*eps)
+    anal = np.array(l.grad_biases())[0]
+    assert abs(num_grad - anal) < 1e-4
+
+
+def test_sequential_named_params():
+    from core import nn
+    l1 = nn.Linear(2, 2, activation='tanh')
+    l2 = nn.Linear(2, 1, activation='sigmoid')
+    seq = nn.Sequential(l1, l2)
+    named = list(seq.named_parameters())
+    assert len(named) == 4
+    names = [n for n, _ in named]
+    assert all('.' in n for n in names)
+
+
+def test_linear_activation_parity_shapes():
+    from core import nn
+    import numpy as np
+    x = np.array([1.0, -0.5])
+    for act in ['sigmoid', 'tanh', 'relu']:
+        l = nn.Linear(2, 3, activation=act)
+        out = l(x)
+        assert out.shape == (3,)
