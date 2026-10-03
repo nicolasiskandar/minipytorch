@@ -171,3 +171,25 @@ def test_linear_activation_parity_shapes():
         l = nn.Linear(2, 3, activation=act)
         out = l(x)
         assert out.shape == (3,)
+
+
+def test_save_load_roundtrip():
+    from core import nn, io
+    import numpy as np
+    import tempfile
+    import os
+
+    l1 = nn.Linear(2, 3, activation='tanh')
+    l2 = nn.Linear(3, 1, activation='sigmoid')
+    seq = nn.Sequential(l1, l2)
+    x = np.array([0.5, -0.3])
+    out1 = seq(x)
+    f = tempfile.mktemp()
+    try:
+        io.save_model(seq, f)
+        seq2 = io.load_model(f)
+        out2 = seq2(x)
+        assert np.allclose(out1, out2)
+    finally:
+        if os.path.exists(f):
+            os.remove(f)
