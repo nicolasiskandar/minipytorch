@@ -4,6 +4,7 @@ from ._minipytorch import (
     ActivationKind,
     FastLayer,
     mse_loss,
+    bce_loss,
     relu_deriv_from_output_f64,
     relu_f64,
     sigmoid_deriv_from_output_f64,
@@ -21,6 +22,7 @@ __all__ = [
     "ActivationKind",
     "FastLayer",
     "mse_loss",
+    "bce_loss",
     "sigmoid_f64",
     "tanh_f64",
     "relu_f64",
@@ -33,4 +35,5 @@ __all__ = [
     "Linear",
     "Sequential",
     "MSELoss",
+    "BCELoss",
 ]

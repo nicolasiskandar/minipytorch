@@ -50,3 +50,13 @@ def test_sequential():
     seq = nn.Sequential(l1, l2)
     out = seq(np.array([0.5, -0.5]))
     assert out.shape == (1,)
+
+
+def test_bce_loss():
+    from core import losses
+    import numpy as np
+    loss_fn = losses.BCELoss()
+    # simple case: pred 0.5, target 1.0 -> mean BCE is -log(0.5)
+    loss, grad = loss_fn(np.array([0.5]), np.array([1.0]))
+    assert abs(loss - (-np.log(0.5))) < 1e-10
+    assert grad.shape == (1,)
