@@ -35,6 +35,10 @@ class FastLayer {
 
     const std::vector<double>& gradWeights() const { return gradWeights_; }
     const std::vector<double>& gradBiases() const { return gradBiases_; }
+    const std::vector<double>& weights() const { return weights_; }
+    const std::vector<double>& biases() const { return biases_; }
+    void setWeights(const std::vector<double>& w) { weights_ = w; }
+    void setBiases(const std::vector<double>& b) { biases_ = b; }
 
    private:
     std::size_t numInputs_;

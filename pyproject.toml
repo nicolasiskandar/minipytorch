@@ -1,0 +1,19 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.13"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "minipytorch"
+version = "0.0.1"
+description = "Minimal PyTorch-like neural network with C++/ASM backend"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "neural-network" }]
+dependencies = ["numpy>=1.21"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.scikit-build]
+wheel.expand-macos-universal-tags = true
+build-dir = "build/{wheel_tag}"
