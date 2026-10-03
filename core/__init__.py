@@ -13,7 +13,7 @@ from ._minipytorch import (
     tanh_f64,
 )
 
-from . import activations, losses, nn
+from . import activations, losses, nn, optim
 from .activations import *
 from .losses import *
 from .nn import *
@@ -37,3 +37,9 @@ __all__ = [
     "MSELoss",
     "BCELoss",
 ]
+
+try:
+    from .optim import *
+except Exception:
+    pass
+from .optim import *

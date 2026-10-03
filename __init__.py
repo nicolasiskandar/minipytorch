@@ -1,5 +1,5 @@
 from .core import *
-from .core import activations, losses, nn
+from .core import activations, losses, nn, optim
 from .core.activations import ActivationKind
 from .core.losses import MSELoss, BCELoss, mse_loss, bce_loss
 from .core.nn import Linear, Sequential
@@ -18,3 +18,8 @@ __all__ = [
     "losses",
     "nn",
 ]
+
+try:
+    from .core.optim import SGD
+except Exception:
+    pass

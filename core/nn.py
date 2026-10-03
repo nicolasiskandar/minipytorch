@@ -2,11 +2,30 @@ import numpy as np
 
 from ._minipytorch import ActivationKind, FastLayer
 
-__all__ = ["Linear", "Sequential"]
+__all__ = ["Module", "Linear", "Sequential"]
 
 
-class Linear:
+class Module:
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+
+    def parameters(self):
+        for _name, _param in self.named_parameters():
+            yield _param
+
+    def named_parameters(self):
+        return []
+
+    def zero_grad(self):
+        return self
+
+
+class Linear(Module):
     def __init__(self, in_features, out_features, activation=None, weights=None, bias=None):
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
 
@@ -63,9 +82,6 @@ class Linear:
         out = self._layer.forward(np.array(x, dtype=float))
         return out
 
-    def __call__(self, x):
-        return self.forward(x)
-
     def backward(self, dloss_dout):
         return self._layer.backward(np.array(dloss_dout, dtype=float))
 
@@ -101,9 +117,14 @@ class Linear:
     def bias(self):
         return self._layer.biases()
 
+    def named_parameters(self):
+        yield "weight", self._layer.weights()
+        yield "bias", self._layer.biases()
 
-class Sequential:
+
+class Sequential(Module):
     def __init__(self, *layers):
+        super().__init__()
         self.layers = list(layers)
 
     def forward(self, x):
@@ -112,5 +133,15 @@ class Sequential:
             out = layer(out) if hasattr(layer, "__call__") else layer.forward(out)
         return out
 
-    def __call__(self, x):
-        return self.forward(x)
+    def named_parameters(self):
+        for i, layer in enumerate(self.layers):
+            if hasattr(layer, "named_parameters"):
+                for name, param in layer.named_parameters():
+                    yield f"{i}.{name}", param
+            elif hasattr(layer, "parameters"):
+                for j, param in enumerate(layer.parameters()):
+                    yield f"{i}.param{j}", param
+
+    def parameters(self):
+        for _name, _param in self.named_parameters():
+            yield _param
