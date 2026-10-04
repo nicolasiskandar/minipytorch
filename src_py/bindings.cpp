@@ -16,6 +16,8 @@ PYBIND11_MODULE(_minipytorch, m) {
     m.def("tanh_f64", [](double x) { return nn_tanh_f64(x); });
     m.def("relu_f64", [](double x) { return nn_relu_f64(x); });
     m.def("relu6_f64", [](double x) { return nn_relu6_f64(x); });
+    m.def("leaky_relu_f64", [](double x) { return nn_leaky_relu_f64(x); });
+    m.def("leaky_relu_derivative_from_output_f64", [](double y) { return nn_leaky_relu_derivative_from_output_f64(y); });
     m.def(
         "sigmoid_deriv_from_output_f64",
         [](double y) { return nn_sigmoid_derivative_from_output_f64(y); }
@@ -88,7 +90,9 @@ PYBIND11_MODULE(_minipytorch, m) {
         .value("SIGMOID", NN_ACTIVATION_SIGMOID)
         .value("TANH", NN_ACTIVATION_TANH)
         .value("RELU", NN_ACTIVATION_RELU)
-        .value("RELU6", NN_ACTIVATION_RELU6);
+        .value("RELU6", NN_ACTIVATION_RELU6)
+        .value("LEAKYRELU", NN_ACTIVATION_LEAKYRELU)
+        .value("LEAKY_RELU", NN_ACTIVATION_LEAKYRELU);
 
     // FastLayer
     py::class_<FastLayer>(m, "FastLayer")
@@ -106,6 +110,8 @@ PYBIND11_MODULE(_minipytorch, m) {
                         act = FastTanh;
                     else if (kind == NN_ACTIVATION_RELU)
                         act = FastReLU;
+                    else if (kind == NN_ACTIVATION_LEAKYRELU)
+                        act = FastLeakyReLU;
                     else if (kind == NN_ACTIVATION_RELU6)
                         act = FastReLU6;
                     else

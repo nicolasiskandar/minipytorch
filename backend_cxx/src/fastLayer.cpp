@@ -18,6 +18,7 @@ int assemblyActivationKind(const PlainActivation& activation) {
 
 double applyForwardActivation(const PlainActivation& activation, double value) {
     if (activation.forward == reluFn) return nn_relu_f64(value);
+    if (activation.forward == leakyReluFn) return nn_leaky_relu_f64(value);
     if (activation.forward == relu6Fn) return nn_relu6_f64(value);
     if (activation.forward == sigmoidFn) return nn_sigmoid_f64(value);
     if (activation.forward == tanhFn) return nn_tanh_f64(value);
@@ -28,6 +29,8 @@ double
 applyDerivativeActivation(const PlainActivation& activation, double output) {
     if (activation.derivativeFromOutput == reluDerivFromOutput)
         return nn_relu_derivative_from_output_f64(output);
+    if (activation.derivativeFromOutput == leakyReluDerivFromOutput)
+        return nn_leaky_relu_derivative_from_output_f64(output);
     if (activation.derivativeFromOutput == relu6DerivFromOutput)
         return nn_relu6_derivative_from_output_f64(output);
     if (activation.derivativeFromOutput == sigmoidDerivFromOutput)
@@ -99,4 +102,4 @@ void FastLayer::applyGradients(double learningRate) {
     );
 }
 
-
+const PlainActivation FastLeakyReLU{leakyReluFn, leakyReluDerivFromOutput};

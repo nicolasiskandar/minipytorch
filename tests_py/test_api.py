@@ -193,3 +193,61 @@ def test_save_load_roundtrip():
     finally:
         if os.path.exists(f):
             os.remove(f)
+
+
+def test_leaky_relu_activation():
+    from core import activations, nn
+    import numpy as np
+
+    assert abs(activations.leaky_relu(-4.0) - (-0.04)) < 1e-12
+    assert abs(activations.leaky_relu(4.0) - 4.0) < 1e-12
+    assert abs(activations.leaky_relu_deriv(4.0) - 1.0) < 1e-12
+    assert abs(activations.leaky_relu_deriv(-4.0) - 0.01) < 1e-12
+
+    layer = nn.Linear(2, 3, activation='leaky_relu', weights=[1, 2, 3, 4, 5, 6], bias=[0, 0, 0])
+    out = layer(np.array([-1.0, 0.0]))
+    expected = activations.leaky_relu(np.array([-1.0, -3.0, -5.0]))
+    assert np.allclose(out, expected)
+
+
+def test_leaky_relu_gradient_numerical():
+    from core import nn, losses
+    import numpy as np
+
+    w = np.array([0.2, -0.3, 0.1, 0.4])
+    b = np.array([0.05, -0.1])
+    x = np.array([0.8, -0.3])
+    y = np.array([0.4, 0.6])
+    loss_fn = losses.MSELoss()
+
+    layer = nn.Linear(2, 2, activation='leaky_relu', weights=w, bias=b)
+    out = layer(x)
+    _loss, grad_out = loss_fn(out, y)
+    _ = layer.backward(grad_out)
+
+    eps = 1e-6
+    w_plus = w.copy()
+    w_plus[0] += eps
+    w_minus = w.copy()
+    w_minus[0] -= eps
+    loss_plus, _ = loss_fn(nn.Linear(2, 2, activation='leaky_relu', weights=w_plus, bias=b)(x), y)
+    loss_minus, _ = loss_fn(nn.Linear(2, 2, activation='leaky_relu', weights=w_minus, bias=b)(x), y)
+    numerical = (loss_plus - loss_minus) / (2 * eps)
+    assert abs(numerical - layer.grad_weights()[0]) < 1e-4
+
+
+def test_relu6_layer_and_activation_kinds():
+    from core import activations, nn
+    import numpy as np
+
+    x = np.array([-1.0, 0.0, 3.0, 10.0])
+    assert np.allclose(activations.relu6(x), [0.0, 0.0, 3.0, 6.0])
+    assert np.allclose(activations.relu6_deriv(x), [0.0, 0.0, 1.0, 0.0])
+
+    # activation strings must map to the distinct kinds, not fall back to ReLU
+    assert nn.Linear(2, 2, activation='relu6').activation_kind == nn.ActivationKind.RELU6
+    assert nn.Linear(2, 2, activation='leaky_relu').activation_kind == nn.ActivationKind.LEAKYRELU
+    assert nn.Linear(2, 2, activation='relu').activation_kind == nn.ActivationKind.RELU
+
+    layer = nn.Linear(2, 2, activation='relu6', weights=[1, 0, 0, 1], bias=[0, 0])
+    assert np.allclose(layer(np.array([9.0, 1.0])), [6.0, 1.0])

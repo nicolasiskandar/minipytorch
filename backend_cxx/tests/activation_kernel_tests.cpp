@@ -33,6 +33,31 @@ void testCppActivations(TestRunner& t) {
     t.checkNear(
         reluDerivFromOutput(0.0), 0.0, 1e-12, "ReLU derivative at zero"
     );
+    t.checkNear(relu6Fn(-2.0), 0.0, 1e-12, "ReLU6 clamps negative input");
+    t.checkNear(relu6Fn(3.0), 3.0, 1e-12, "ReLU6 passes interior input");
+    t.checkNear(relu6Fn(9.0), 6.0, 1e-12, "ReLU6 clamps above six");
+    t.checkNear(
+        relu6DerivFromOutput(3.0), 1.0, 1e-12, "ReLU6 derivative inside"
+    );
+    t.checkNear(
+        relu6DerivFromOutput(0.0), 0.0, 1e-12, "ReLU6 derivative at zero"
+    );
+    t.checkNear(
+        relu6DerivFromOutput(6.0), 0.0, 1e-12, "ReLU6 derivative at six"
+    );
+    t.checkNear(
+        leakyReluFn(4.0), 4.0, 1e-12, "LeakyReLU passes positive input"
+    );
+    t.checkNear(
+        leakyReluFn(-4.0), -0.04, 1e-12, "LeakyReLU scales negative input"
+    );
+    t.checkNear(
+        leakyReluDerivFromOutput(4.0), 1.0, 1e-12, "LeakyReLU derivative"
+    );
+    t.checkNear(
+        leakyReluDerivFromOutput(-4.0), 0.01, 1e-12,
+        "LeakyReLU derivative for negative output"
+    );
 }
 
 void testAssemblyDotProduct(TestRunner& t) {
@@ -76,6 +101,26 @@ void testAssemblyActivations(TestRunner& t) {
         std::isnan(nn_sigmoid_f64(std::numeric_limits<double>::quiet_NaN())),
         "Assembly sigmoid preserves NaN"
     );
+    for (double input : {-9.0, -1.0, 0.0, 1.0, 6.0, 9.0}) {
+        t.checkNear(
+            nn_relu6_f64(input), relu6Fn(input), 1e-12,
+            "Assembly ReLU6 matches C++ reference"
+        );
+        t.checkNear(
+            nn_relu6_derivative_from_output_f64(input),
+            relu6DerivFromOutput(input), 1e-12,
+            "Assembly ReLU6 derivative matches C++ reference"
+        );
+        t.checkNear(
+            nn_leaky_relu_f64(input), leakyReluFn(input), 1e-12,
+            "Assembly LeakyReLU matches C++ reference"
+        );
+        t.checkNear(
+            nn_leaky_relu_derivative_from_output_f64(input),
+            leakyReluDerivFromOutput(input), 1e-12,
+            "Assembly LeakyReLU derivative matches C++ reference"
+        );
+    }
 }
 
 void testAssemblyFastLayerForward(TestRunner& t) {

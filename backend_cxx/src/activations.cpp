@@ -31,3 +31,9 @@ double relu6DerivFromOutput(double y) {
 }
 
 const Activation ReLU6{relu6Fn, relu6DerivFromOutput};
+
+double leakyReluFn(double z) { return z > 0.0 ? z : 0.01 * z; }
+
+double leakyReluDerivFromOutput(double y) { return y > 0.0 ? 1.0 : 0.01; }
+
+const Activation LeakyReLU{leakyReluFn, leakyReluDerivFromOutput};

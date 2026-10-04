@@ -17,7 +17,8 @@ enum NNActivationKind {
     NN_ACTIVATION_SIGMOID = 0,
     NN_ACTIVATION_TANH = 1,
     NN_ACTIVATION_RELU = 2,
-    NN_ACTIVATION_RELU6 = 3
+    NN_ACTIVATION_RELU6 = 3,
+    NN_ACTIVATION_LEAKYRELU = 4
 };
 
 extern "C" void nn_fast_layer_forward_f64(
@@ -85,3 +86,6 @@ extern "C" double nn_relu6_f64(double value);
 extern "C" double nn_relu6_derivative_from_output_f64(double output);
 
 
+
+extern "C" double nn_leaky_relu_f64(double value);
+extern "C" double nn_leaky_relu_derivative_from_output_f64(double output);

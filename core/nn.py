@@ -79,14 +79,22 @@ class Linear(Module):
                 kind = ActivationKind.SIGMOID
             elif a == "tanh":
                 kind = ActivationKind.TANH
-            elif a in ("relu", "relu6"):
+            elif a == "relu":
                 kind = ActivationKind.RELU
+            elif a == "relu6":
+                kind = ActivationKind.RELU6
+            elif a in ("leaky_relu", "leakyrelu", "leaky"):
+                kind = ActivationKind.LEAKYRELU
             else:
                 kind = ActivationKind.SIGMOID
         else:
             name = type(activation).__name__.lower()
             if "tanh" in name:
                 kind = ActivationKind.TANH
+            elif "relu6" in name:
+                kind = ActivationKind.RELU6
+            elif "leaky" in name:
+                kind = ActivationKind.LEAKYRELU
             elif "relu" in name:
                 kind = ActivationKind.RELU
             elif "sigmoid" in name:
@@ -194,6 +202,7 @@ class Sequential(Module):
     def parameters(self):
         for _name, _param in self.named_parameters():
             yield _param
+
     def named_modules(self):
         yield "", self
         for i, layer in enumerate(self.layers):
@@ -213,6 +222,7 @@ class Sequential(Module):
                 yield from child.modules()
             else:
                 yield child
+
 
 class ModuleList(Module):
     def __init__(self, *modules):
@@ -256,26 +266,17 @@ class ModuleList(Module):
         for _n, p in self.named_parameters():
             yield p
 
+
 class Softmax(Module):
     def __init__(self, dim=None):
         super().__init__()
         self.dim = dim
 
     def forward(self, x):
-        import numpy as np
-        x = np.array(x, dtype=float)
-        if x.ndim == 0:
-            return np.array(1.0, dtype=float)
-        # determine dim
-        dim = self.dim
-        if dim is None:
-            dim = -1
-        try:
-            x_shift = x - np.max(x, axis=dim, keepdims=True)
-        except Exception:
-            x_shift = x - np.max(x)
-        e = np.exp(x_shift)
-        try:
-            return e / (np.sum(e, axis=dim, keepdims=True) + 1e-300)
-        except Exception:
-            return e / (np.sum(e) + 1e-300)
+        from .activations import softmax
+
+        x = np.asarray(x, dtype=float)
+        dim = -1 if self.dim is None else self.dim
+        if x.ndim > 0:
+            dim = dim % x.ndim
+        return softmax(x, dim=dim)

@@ -25,3 +25,8 @@ double relu6Fn(double z);
 double relu6DerivFromOutput(double y);
 
 extern const Activation ReLU6;
+
+double leakyReluFn(double z);
+double leakyReluDerivFromOutput(double y);
+
+extern const Activation LeakyReLU;

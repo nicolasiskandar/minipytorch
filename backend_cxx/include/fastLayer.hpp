@@ -53,3 +53,5 @@ class FastLayer {
 };
 
 extern const PlainActivation FastReLU6;
+
+extern const PlainActivation FastLeakyReLU;

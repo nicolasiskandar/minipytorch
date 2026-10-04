@@ -11,12 +11,18 @@ from ._minipytorch import (
     sigmoid_f64,
     tanh_deriv_from_output_f64,
     tanh_f64,
+    relu6_f64,
+    relu6_deriv_from_output_f64,
+    leaky_relu_f64,
+    leaky_relu_derivative_from_output_f64,
 )
 
-from . import activations, losses, nn, optim
+from . import activations, io, losses, nn, optim
 from .activations import *
 from .losses import *
 from .nn import *
+from .optim import *
+from .io import *
 
 __all__ = [
     "ActivationKind",
@@ -29,19 +35,23 @@ __all__ = [
     "sigmoid_deriv_from_output_f64",
     "tanh_deriv_from_output_f64",
     "relu_deriv_from_output_f64",
+    "relu6_f64",
+    "relu6_deriv_from_output_f64",
+    "leaky_relu_f64",
+    "leaky_relu_derivative_from_output_f64",
     "activations",
+    "io",
     "losses",
     "nn",
+    "optim",
     "Linear",
     "Sequential",
+    "ModuleList",
+    "Softmax",
     "MSELoss",
     "BCELoss",
+    "CrossEntropyLoss",
+    "SGD",
+    "save_model",
+    "load_model",
 ]
-
-try:
-    from .optim import *
-except Exception:
-    pass
-from .optim import *
-
-from .io import *

@@ -133,27 +133,6 @@ nn_tanh_derivative_from_output_f64:
   movapd %xmm1, %xmm0
   ret
 
-  .section .rodata
-.p2align 3
-.Lone: .double 1.0
-.Lnegative_one: .double -1.0
-.Lln2: .double 0.69314718055994530942
-.Linv_ln2: .double 1.4426950408889634074
-.Lsigmoid_lower: .double -14.0
-.Lsigmoid_upper: .double 14.0
-.Ltanh_lower: .double -8.0
-.Ltanh_upper: .double 8.0
-.Lexp_c2: .double 0.5
-.Lexp_c3: .double 0.16666666666666666667
-.Lexp_c4: .double 0.041666666666666666667
-.Lexp_c5: .double 0.0083333333333333333333
-.Lexp_c6: .double 0.0013888888888888888889
-.Lexp_c7: .double 0.00019841269841269841270
-.Lexp_c8: .double 0.000024801587301587301587
-.Lexp_c9: .double 0.0000027557319223985890653
-
-  .section .note.GNU-stack,"",@progbits
-
   .globl nn_relu6_f64
   .type nn_relu6_f64, @function
 nn_relu6_f64:
@@ -185,6 +164,50 @@ nn_relu6_derivative_from_output_f64:
   xorpd  %xmm0, %xmm0
   ret
 
+# Leaky ReLU with a fixed slope of 0.01.
+  .globl nn_leaky_relu_f64
+  .type nn_leaky_relu_f64, @function
+nn_leaky_relu_f64:
+  xorpd  %xmm1, %xmm1
+  ucomisd %xmm1, %xmm0
+  ja     .Lleaky_relu_pos
+  movsd  .Lleaky_relu_alpha(%rip), %xmm1
+  mulsd  %xmm1, %xmm0
+  ret
+.Lleaky_relu_pos:
+  ret
+
+  .globl nn_leaky_relu_derivative_from_output_f64
+  .type nn_leaky_relu_derivative_from_output_f64, @function
+nn_leaky_relu_derivative_from_output_f64:
+  xorpd  %xmm1, %xmm1
+  ucomisd %xmm1, %xmm0
+  ja     .Lleaky_relu_deriv_pos
+  movsd  .Lleaky_relu_alpha(%rip), %xmm0
+  ret
+.Lleaky_relu_deriv_pos:
+  movsd  .Lone(%rip), %xmm0
+  ret
+
   .section .rodata
 .p2align 3
+.Lone: .double 1.0
+.Lnegative_one: .double -1.0
+.Lln2: .double 0.69314718055994530942
+.Linv_ln2: .double 1.4426950408889634074
+.Lsigmoid_lower: .double -14.0
+.Lsigmoid_upper: .double 14.0
+.Ltanh_lower: .double -8.0
+.Ltanh_upper: .double 8.0
+.Lexp_c2: .double 0.5
+.Lexp_c3: .double 0.16666666666666666667
+.Lexp_c4: .double 0.041666666666666666667
+.Lexp_c5: .double 0.0083333333333333333333
+.Lexp_c6: .double 0.0013888888888888888889
+.Lexp_c7: .double 0.00019841269841269841270
+.Lexp_c8: .double 0.000024801587301587301587
+.Lexp_c9: .double 0.0000027557319223985890653
 .Lrelu6_six: .double 6.0
+.Lleaky_relu_alpha: .double 0.01
+
+  .section .note.GNU-stack,"",@progbits
