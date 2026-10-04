@@ -2,7 +2,7 @@ import numpy as np
 
 from ._minipytorch import ActivationKind, FastLayer
 
-__all__ = ["Module", "ModuleList", "Linear", "Sequential", "Softmax"]
+__all__ = ["Module", "Parameter", "ModuleList", "Linear", "Sequential", "Softmax"]
 
 
 class Module:
@@ -59,6 +59,53 @@ class Module:
 
     def training(self):
         return getattr(self, "_training", True)
+
+
+class Parameter:
+    def __init__(self, layer, kind):
+        if kind not in ("weight", "bias"):
+            raise ValueError(f"unknown parameter kind: {kind}")
+        self._layer = layer
+        self._kind = kind
+        self._velocity = None
+
+    @property
+    def layer(self):
+        return self._layer
+
+    @property
+    def kind(self):
+        return self._kind
+
+    @property
+    def value(self):
+        if self._kind == "weight":
+            return self._layer.weights()
+        return self._layer.biases()
+
+    def grad(self):
+        if self._kind == "weight":
+            return self._layer.grad_weights()
+        return self._layer.grad_biases()
+
+    def zero_grad(self):
+        self._layer.zero_grad()
+
+    def apply_gradients(self, lr=0.01, momentum=0.0):
+        gradients = np.asarray(self.grad(), dtype=float)
+        values = np.asarray(self.value, dtype=float)
+        if momentum == 0.0:
+            updated = values - lr * gradients
+        else:
+            if self._velocity is None or self._velocity.shape != gradients.shape:
+                self._velocity = np.zeros_like(gradients)
+            self._velocity = momentum * self._velocity + gradients
+            updated = values - lr * self._velocity
+        if self._kind == "weight":
+            self._layer.set_weights(updated)
+        else:
+            self._layer.set_biases(updated)
+        return self
 
 
 class Linear(Module):
@@ -124,6 +171,9 @@ class Linear(Module):
             biases=bias_arr,
         )
 
+        self._weight_parameter = Parameter(self, "weight")
+        self._bias_parameter = Parameter(self, "bias")
+
     def forward(self, x):
         out = self._layer.forward(np.array(x, dtype=float))
         return out
@@ -133,6 +183,10 @@ class Linear(Module):
 
     def apply_gradients(self, lr=0.01):
         self._layer.apply_gradients(float(lr))
+        return self
+
+    def zero_grad(self):
+        self._layer.zero_gradients()
         return self
 
     def grad_weights(self):
@@ -164,8 +218,8 @@ class Linear(Module):
         return self._layer.biases()
 
     def named_parameters(self):
-        yield "weight", self._layer.weights()
-        yield "bias", self._layer.biases()
+        yield "weight", self._weight_parameter
+        yield "bias", self._bias_parameter
 
 
 class Sequential(Module):

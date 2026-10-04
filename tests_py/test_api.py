@@ -275,3 +275,109 @@ def test_relu6_layer_and_activation_kinds():
 
     layer = nn.Linear(2, 2, activation='relu6', weights=[1, 0, 0, 1], bias=[0, 0])
     assert np.allclose(layer(np.array([9.0, 1.0])), [6.0, 1.0])
+
+
+def test_sgd_step_updates_weights():
+    from core import nn, optim, losses
+    import numpy as np
+
+    lin = nn.Linear(2, 2, weights=[1.0, 2.0, 3.0, 4.0], bias=[0.5, -0.5])
+    out = lin.forward(np.array([1.0, 1.0]))
+    _loss, grad_out = losses.MSELoss()(out, np.array([0.5, 0.5]))
+    lin.backward(grad_out)
+
+    before = lin.weights().copy()
+    before_bias = lin.biases().copy()
+    optim.SGD(lin.parameters(), lr=0.1).step()
+    assert not np.allclose(lin.weights(), before)
+    assert not np.allclose(lin.biases(), before_bias)
+
+
+def test_sgd_step_without_backward_is_a_no_op():
+    from core import nn, optim
+    import numpy as np
+
+    lin = nn.Linear(2, 2, weights=[1.0, 2.0, 3.0, 4.0], bias=[0.5, -0.5])
+    before = lin.weights().copy()
+    optim.SGD(lin.parameters(), lr=0.1).step()
+    assert np.allclose(lin.weights(), before)
+
+
+def test_sgd_momentum_matches_formula():
+    from core import nn, optim, losses
+    import numpy as np
+
+    lin = nn.Linear(2, 1, weights=[0.5, -0.25], bias=[0.1])
+    out = lin.forward(np.array([1.0, -2.0]))
+    _loss, grad_out = losses.MSELoss()(out, np.array([0.5]))
+    lin.backward(grad_out)
+
+    lr = 0.1
+    momentum = 0.9
+    params = list(lin.parameters())
+    gradients = [np.array(p.grad(), dtype=float) for p in params]
+    velocities = [np.zeros_like(g) for g in gradients]
+    expected = [np.array(p.value, dtype=float) for p in params]
+
+    for _ in range(3):
+        for i in range(len(params)):
+            velocities[i] = momentum * velocities[i] + gradients[i]
+            expected[i] = expected[i] - lr * velocities[i]
+
+    opt = optim.SGD(params, lr=lr, momentum=momentum)
+    for _ in range(3):
+        opt.step()
+
+    for i, p in enumerate(params):
+        assert np.allclose(p.value, expected[i], atol=1e-12)
+
+
+def test_zero_grad_clears_gradients():
+    from core import nn, losses
+    import numpy as np
+
+    lin = nn.Linear(2, 2, weights=[1.0, 2.0, 3.0, 4.0], bias=[0.5, -0.5])
+    out = lin.forward(np.array([1.0, 1.0]))
+    _loss, grad_out = losses.MSELoss()(out, np.array([0.5, 0.5]))
+    lin.backward(grad_out)
+    assert any(p.grad().any() for p in lin.parameters())
+
+    lin.zero_grad()
+    assert all(not p.grad().any() for p in lin.parameters())
+
+
+def test_sgd_zero_grad_reaches_params():
+    from core import nn, optim, losses
+    import numpy as np
+
+    lin = nn.Linear(2, 2, weights=[1.0, 2.0, 3.0, 4.0], bias=[0.5, -0.5])
+    out = lin.forward(np.array([1.0, 1.0]))
+    _loss, grad_out = losses.MSELoss()(out, np.array([0.5, 0.5]))
+    lin.backward(grad_out)
+
+    opt = optim.SGD(lin.parameters(), lr=0.1, momentum=0.9)
+    opt.zero_grad()
+    assert all(not p.grad().any() for p in lin.parameters())
+
+
+def test_sgd_rejects_non_parameter_params():
+    from core import nn, optim
+    import numpy as np
+
+    lin = nn.Linear(2, 2)
+    try:
+        optim.SGD([np.zeros(4), np.zeros(2)], lr=0.1)
+        raise AssertionError("expected TypeError for plain arrays")
+    except TypeError:
+        pass
+
+
+def test_parameters_yield_stable_handles():
+    from core import nn
+
+    lin = nn.Linear(2, 2)
+    first = list(lin.parameters())
+    second = list(lin.parameters())
+    assert all(a is b for a, b in zip(first, second))
+    assert [p.kind for p in first] == ['weight', 'bias']
+    assert all(p.layer is lin for p in first)

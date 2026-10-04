@@ -69,6 +69,58 @@ void testAssemblyGradientUpdate(TestRunner& t) {
     );
 }
 
+void testFastLayerZeroGradients(TestRunner& t) {
+    const std::vector<double> weights = {0.5, -0.3, 0.8, 0.2};
+    const std::vector<double> biases = {0.1, -0.5};
+    FastLayer layer(2, 2, FastSigmoid, weights, biases);
+    LossResult result = meanSquaredError(layer.forward({1.0, 2.0}), {0.5, 0.5});
+    layer.backward(result.dLoss_dOutput);
+
+    bool anyNonZero = false;
+    for (double g : layer.gradWeights()) anyNonZero = anyNonZero || g != 0.0;
+    for (double g : layer.gradBiases()) anyNonZero = anyNonZero || g != 0.0;
+    t.check(anyNonZero, "FastLayer gradients are populated before zeroing");
+
+    layer.zeroGradients();
+    t.checkNear(
+        layer.gradWeights()[0], 0.0, 1e-12, "FastLayer zeroGradients: weight 0"
+    );
+    t.checkNear(
+        layer.gradWeights()[3], 0.0, 1e-12, "FastLayer zeroGradients: weight 3"
+    );
+    t.checkNear(
+        layer.gradBiases()[0], 0.0, 1e-12, "FastLayer zeroGradients: bias 0"
+    );
+    t.checkNear(
+        layer.gradBiases()[1], 0.0, 1e-12, "FastLayer zeroGradients: bias 1"
+    );
+
+    layer.applyGradients(0.5);
+    t.checkNear(
+        layer.weights()[0], weights[0], 1e-12,
+        "FastLayer zeroGradients leaves weights untouched"
+    );
+}
+
+void testFastLayerApplyGradientsBeforeBackward(TestRunner& t) {
+    const std::vector<double> weights = {0.5, -0.3, 0.8, 0.2};
+    const std::vector<double> biases = {0.1, -0.5};
+    FastLayer layer(2, 2, FastSigmoid, weights, biases);
+    t.checkNear(
+        layer.gradWeights()[0], 0.0, 1e-12,
+        "FastLayer gradients start zeroed before any backward"
+    );
+    layer.applyGradients(0.5);
+    t.checkNear(
+        layer.weights()[0], weights[0], 1e-12,
+        "FastLayer applyGradients before backward leaves weights untouched"
+    );
+    t.checkNear(
+        layer.biases()[1], biases[1], 1e-12,
+        "FastLayer applyGradients before backward leaves biases untouched"
+    );
+}
+
 void testSerialization(TestRunner& t) {
     NeuralNetwork network({
         Layer({Neuron({0.5, -0.3}, 0.1, Tanh), Neuron({0.8, 0.2}, -0.5, ReLU)}),
@@ -108,5 +160,7 @@ void testSerialization(TestRunner& t) {
 void runFastLayerAndSerializationTests(TestRunner& t) {
     testFastLayer(t);
     testAssemblyGradientUpdate(t);
+    testFastLayerZeroGradients(t);
+    testFastLayerApplyGradientsBeforeBackward(t);
     testSerialization(t);
 }

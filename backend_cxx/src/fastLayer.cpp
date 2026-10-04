@@ -94,12 +94,21 @@ std::vector<double> FastLayer::backward(
 }
 
 void FastLayer::applyGradients(double learningRate) {
-    nn_apply_gradients_f64(
-        weights_.data(), gradWeights_.data(), weights_.size(), learningRate
-    );
-    nn_apply_gradients_f64(
-        biases_.data(), gradBiases_.data(), biases_.size(), learningRate
-    );
+    if (gradWeights_.size() == weights_.size()) {
+        nn_apply_gradients_f64(
+            weights_.data(), gradWeights_.data(), weights_.size(), learningRate
+        );
+    }
+    if (gradBiases_.size() == biases_.size()) {
+        nn_apply_gradients_f64(
+            biases_.data(), gradBiases_.data(), biases_.size(), learningRate
+        );
+    }
+}
+
+void FastLayer::zeroGradients() {
+    gradWeights_.assign(numOutputs_ * numInputs_, 0.0);
+    gradBiases_.assign(numOutputs_, 0.0);
 }
 
 const PlainActivation FastLeakyReLU{leakyReluFn, leakyReluDerivFromOutput};

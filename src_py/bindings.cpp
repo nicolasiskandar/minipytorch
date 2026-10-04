@@ -163,6 +163,7 @@ PYBIND11_MODULE(_minipytorch, m) {
             }
         )
         .def("apply_gradients", &FastLayer::applyGradients)
+        .def("zero_gradients", &FastLayer::zeroGradients)
         .def("grad_weights", [](FastLayer& self) {
             const auto& g = self.gradWeights();
             return py::array_t<double>(

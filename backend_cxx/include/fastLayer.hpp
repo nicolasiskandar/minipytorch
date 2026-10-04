@@ -27,11 +27,15 @@ class FastLayer {
           numOutputs_(numOutputs),
           activation_(activation),
           weights_(std::move(weights)),
-          biases_(std::move(biases)) {}
+          biases_(std::move(biases)) {
+        gradWeights_.assign(numOutputs_ * numInputs_, 0.0);
+        gradBiases_.assign(numOutputs_, 0.0);
+    }
 
     std::vector<double> forward(const std::vector<double>& input);
     std::vector<double> backward(const std::vector<double>& dLoss_dOutput);
     void applyGradients(double learningRate);
+    void zeroGradients();
 
     const std::vector<double>& gradWeights() const { return gradWeights_; }
     const std::vector<double>& gradBiases() const { return gradBiases_; }
