@@ -51,3 +51,5 @@ class FastLayer {
     std::vector<double> gradWeights_;
     std::vector<double> gradBiases_;
 };
+
+extern const PlainActivation FastReLU6;

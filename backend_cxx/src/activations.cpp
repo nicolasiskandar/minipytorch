@@ -18,3 +18,16 @@ double reluDerivFromOutput(double y) { return y > 0.0 ? 1.0 : 0.0; }
 const Activation Sigmoid{sigmoidFn, sigmoidDerivFromOutput};
 const Activation Tanh{tanhFn, tanhDerivFromOutput};
 const Activation ReLU{reluFn, reluDerivFromOutput};
+
+double relu6Fn(double z) {
+    if (z < 0.0) return 0.0;
+    if (z > 6.0) return 6.0;
+    return z;
+}
+
+double relu6DerivFromOutput(double y) {
+    if (y <= 0.0 || y >= 6.0) return 0.0;
+    return 1.0;
+}
+
+const Activation ReLU6{relu6Fn, relu6DerivFromOutput};

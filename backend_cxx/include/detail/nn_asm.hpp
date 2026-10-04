@@ -17,6 +17,7 @@ enum NNActivationKind {
     NN_ACTIVATION_SIGMOID = 0,
     NN_ACTIVATION_TANH = 1,
     NN_ACTIVATION_RELU = 2,
+    NN_ACTIVATION_RELU6 = 3
 };
 
 extern "C" void nn_fast_layer_forward_f64(
@@ -79,3 +80,8 @@ extern "C" void nn_neuron_backward_f64(
     double* gradBias,
     double* dLoss_dInput
 );
+
+extern "C" double nn_relu6_f64(double value);
+extern "C" double nn_relu6_derivative_from_output_f64(double output);
+
+

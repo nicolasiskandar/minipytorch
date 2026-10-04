@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include "activations.hpp"
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
@@ -14,6 +15,7 @@ PYBIND11_MODULE(_minipytorch, m) {
     m.def("sigmoid_f64", [](double x) { return nn_sigmoid_f64(x); });
     m.def("tanh_f64", [](double x) { return nn_tanh_f64(x); });
     m.def("relu_f64", [](double x) { return nn_relu_f64(x); });
+    m.def("relu6_f64", [](double x) { return nn_relu6_f64(x); });
     m.def(
         "sigmoid_deriv_from_output_f64",
         [](double y) { return nn_sigmoid_derivative_from_output_f64(y); }
@@ -25,6 +27,10 @@ PYBIND11_MODULE(_minipytorch, m) {
     m.def(
         "relu_deriv_from_output_f64",
         [](double y) { return nn_relu_derivative_from_output_f64(y); }
+    );
+    m.def(
+        "relu6_deriv_from_output_f64",
+        [](double y) { return nn_relu6_derivative_from_output_f64(y); }
     );
 
     // MSE: returns (loss, grad_pred)
@@ -81,7 +87,8 @@ PYBIND11_MODULE(_minipytorch, m) {
     py::enum_<NNActivationKind>(m, "ActivationKind")
         .value("SIGMOID", NN_ACTIVATION_SIGMOID)
         .value("TANH", NN_ACTIVATION_TANH)
-        .value("RELU", NN_ACTIVATION_RELU);
+        .value("RELU", NN_ACTIVATION_RELU)
+        .value("RELU6", NN_ACTIVATION_RELU6);
 
     // FastLayer
     py::class_<FastLayer>(m, "FastLayer")
@@ -99,6 +106,8 @@ PYBIND11_MODULE(_minipytorch, m) {
                         act = FastTanh;
                     else if (kind == NN_ACTIVATION_RELU)
                         act = FastReLU;
+                    else if (kind == NN_ACTIVATION_RELU6)
+                        act = FastReLU6;
                     else
                         act = FastSigmoid;
 
@@ -189,3 +198,5 @@ PYBIND11_MODULE(_minipytorch, m) {
             self.setBiases(bv);
         });
 }
+
+#include "activations.hpp"

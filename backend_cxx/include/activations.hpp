@@ -20,3 +20,8 @@ double reluDerivFromOutput(double y);
 extern const Activation Sigmoid;
 extern const Activation Tanh;
 extern const Activation ReLU;
+
+double relu6Fn(double z);
+double relu6DerivFromOutput(double y);
+
+extern const Activation ReLU6;

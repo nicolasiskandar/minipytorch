@@ -153,3 +153,38 @@ nn_tanh_derivative_from_output_f64:
 .Lexp_c9: .double 0.0000027557319223985890653
 
   .section .note.GNU-stack,"",@progbits
+
+  .globl nn_relu6_f64
+  .type nn_relu6_f64, @function
+nn_relu6_f64:
+  xorpd  %xmm1, %xmm1
+  ucomisd %xmm1, %xmm0
+  ja     .Lrelu6_gt_zero
+  xorpd  %xmm0, %xmm0
+  ret
+.Lrelu6_gt_zero:
+  movsd  .Lrelu6_six(%rip), %xmm1
+  ucomisd %xmm1, %xmm0
+  jb     .Lrelu6_done
+  movapd %xmm1, %xmm0
+.Lrelu6_done:
+  ret
+
+  .globl nn_relu6_derivative_from_output_f64
+  .type nn_relu6_derivative_from_output_f64, @function
+nn_relu6_derivative_from_output_f64:
+  xorpd  %xmm1, %xmm1
+  ucomisd %xmm1, %xmm0
+  jbe    .Lrelu6_deriv_zero
+  movsd  .Lrelu6_six(%rip), %xmm1
+  ucomisd %xmm1, %xmm0
+  jae    .Lrelu6_deriv_zero
+  movsd  .Lone(%rip), %xmm0
+  ret
+.Lrelu6_deriv_zero:
+  xorpd  %xmm0, %xmm0
+  ret
+
+  .section .rodata
+.p2align 3
+.Lrelu6_six: .double 6.0

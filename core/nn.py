@@ -2,7 +2,7 @@ import numpy as np
 
 from ._minipytorch import ActivationKind, FastLayer
 
-__all__ = ["Module", "Linear", "Sequential"]
+__all__ = ["Module", "ModuleList", "Linear", "Sequential", "Softmax"]
 
 
 class Module:
@@ -36,18 +36,29 @@ class Module:
 
     def named_modules(self):
         yield "", self
-        for child in self.children():
+        for name, child in self.named_children():
             if hasattr(child, "named_modules"):
                 for cname, cmod in child.named_modules():
                     if cname:
-                        yield f"{cname}", cmod
+                        yield f"{name}.{cname}", cmod
                     else:
-                        yield cname, cmod
+                        yield name, cmod
             else:
-                yield "", child
+                yield name, child
 
     def zero_grad(self):
         return self
+
+    def train(self, mode=True):
+        self._training = mode
+        return self
+
+    def eval(self):
+        self._training = False
+        return self
+
+    def training(self):
+        return getattr(self, "_training", True)
 
 
 class Linear(Module):
@@ -183,3 +194,88 @@ class Sequential(Module):
     def parameters(self):
         for _name, _param in self.named_parameters():
             yield _param
+    def named_modules(self):
+        yield "", self
+        for i, layer in enumerate(self.layers):
+            if hasattr(layer, "named_modules"):
+                for name, mod in layer.named_modules():
+                    if name:
+                        yield f"{i}.{name}", mod
+                    else:
+                        yield f"{i}", mod
+            else:
+                yield str(i), layer
+
+    def modules(self):
+        yield self
+        for _name, child in self.named_children():
+            if hasattr(child, "modules"):
+                yield from child.modules()
+            else:
+                yield child
+
+class ModuleList(Module):
+    def __init__(self, *modules):
+        super().__init__()
+        self.modules_list = list(modules)
+
+    def __iter__(self):
+        return iter(self.modules_list)
+
+    def __getitem__(self, idx):
+        return self.modules_list[idx]
+
+    def __len__(self):
+        return len(self.modules_list)
+
+    def append(self, module):
+        self.modules_list.append(module)
+        return self
+
+    def named_children(self):
+        for i, m in enumerate(self.modules_list):
+            yield str(i), m
+
+    def children(self):
+        for _n, c in self.named_children():
+            yield c
+
+    def named_parameters(self):
+        for i, m in enumerate(self.modules_list):
+            if hasattr(m, "named_parameters"):
+                for name, param in m.named_parameters():
+                    if name:
+                        yield f"{i}.{name}", param
+                    else:
+                        yield f"{i}", param
+            elif hasattr(m, "parameters"):
+                for j, param in enumerate(m.parameters()):
+                    yield f"{i}.param{j}", param
+
+    def parameters(self):
+        for _n, p in self.named_parameters():
+            yield p
+
+class Softmax(Module):
+    def __init__(self, dim=None):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, x):
+        import numpy as np
+        x = np.array(x, dtype=float)
+        if x.ndim == 0:
+            return np.array(1.0, dtype=float)
+        # determine dim
+        dim = self.dim
+        if dim is None:
+            dim = -1
+        try:
+            x_shift = x - np.max(x, axis=dim, keepdims=True)
+        except Exception:
+            x_shift = x - np.max(x)
+        e = np.exp(x_shift)
+        try:
+            return e / (np.sum(e, axis=dim, keepdims=True) + 1e-300)
+        except Exception:
+            return e / (np.sum(e) + 1e-300)
