@@ -51,9 +51,10 @@ pybind11_add_module(_minipytorch
   ${ASM_SOURCES}
 )
 
-# Install into Python package core
+# Install into the Python package, beside core/__init__.py so that
+# `from ._minipytorch import ...` resolves
 install(TARGETS _minipytorch
-  LIBRARY DESTINATION minipytorch/core
-  RUNTIME DESTINATION minipytorch/core
-  ARCHIVE DESTINATION minipytorch/core
+  LIBRARY DESTINATION core
+  RUNTIME DESTINATION core
+  ARCHIVE DESTINATION core
 )

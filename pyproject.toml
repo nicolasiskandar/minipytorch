@@ -15,5 +15,6 @@ dependencies = ["numpy>=1.21"]
 dev = ["pytest>=8.0"]
 
 [tool.scikit-build]
+wheel.packages = ["core"]
 wheel.expand-macos-universal-tags = true
 build-dir = "build/{wheel_tag}"

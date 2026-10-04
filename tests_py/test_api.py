@@ -210,6 +210,30 @@ def test_leaky_relu_activation():
     assert np.allclose(out, expected)
 
 
+def test_leaky_relu_custom_alpha():
+    from core import activations
+    import numpy as np
+
+    assert abs(float(activations.leaky_relu(-4.0, alpha=0.2)) - (-0.8)) < 1e-12
+    assert abs(float(activations.leaky_relu(4.0, alpha=0.2)) - 4.0) < 1e-12
+    assert abs(float(activations.leaky_relu_deriv(4.0, alpha=0.2)) - 1.0) < 1e-12
+    assert abs(float(activations.leaky_relu_deriv(-4.0, alpha=0.2)) - 0.2) < 1e-12
+
+    values = activations.leaky_relu(np.array([-4.0, 4.0]), alpha=0.2)
+    assert np.allclose(values, np.array([-0.8, 4.0]))
+    derivs = activations.leaky_relu_deriv(np.array([-4.0, 4.0]), alpha=0.2)
+    assert np.allclose(derivs, np.array([0.2, 1.0]))
+
+
+def test_leaky_relu_default_alpha_uses_asm_path():
+    from core import activations
+
+    assert isinstance(activations.leaky_relu(-4.0), float)
+    assert isinstance(activations.leaky_relu(4.0), float)
+    assert isinstance(activations.leaky_relu_deriv(-4.0), float)
+    assert isinstance(activations.leaky_relu_deriv(4.0), float)
+
+
 def test_leaky_relu_gradient_numerical():
     from core import nn, losses
     import numpy as np

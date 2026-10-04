@@ -102,27 +102,35 @@ def relu6_deriv(y):
 
 
 def leaky_relu(x, alpha=0.01):
-    try:
-        return leaky_relu_f64(float(x))
-    except (TypeError, ValueError):
-        import numpy as np
+    if alpha == 0.01:
+        try:
+            return leaky_relu_f64(float(x))
+        except (TypeError, ValueError):
+            import numpy as np
 
-        x = np.array(x, dtype=float)
-        if alpha != 0.01:
-            return np.where(x > 0.0, x, alpha * x)
-        return np.vectorize(leaky_relu_f64)(x)
+            return np.vectorize(leaky_relu_f64)(np.array(x, dtype=float))
+
+    import numpy as np
+
+    x = np.array(x, dtype=float)
+    return np.where(x > 0.0, x, alpha * x)
 
 
 def leaky_relu_deriv(y, alpha=0.01):
-    try:
-        return leaky_relu_derivative_from_output_f64(float(y))
-    except (TypeError, ValueError):
-        import numpy as np
+    if alpha == 0.01:
+        try:
+            return leaky_relu_derivative_from_output_f64(float(y))
+        except (TypeError, ValueError):
+            import numpy as np
 
-        y = np.array(y, dtype=float)
-        if alpha != 0.01:
-            return np.where(y > 0.0, 1.0, alpha)
-        return np.vectorize(leaky_relu_derivative_from_output_f64)(y)
+            return np.vectorize(leaky_relu_derivative_from_output_f64)(
+                np.array(y, dtype=float)
+            )
+
+    import numpy as np
+
+    y = np.array(y, dtype=float)
+    return np.where(y > 0.0, 1.0, alpha)
 
 
 def softmax(x, dim=-1):
