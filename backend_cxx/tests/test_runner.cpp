@@ -8,7 +8,8 @@ int main() {
     runNeuronAndLayerTests(t);
     runLossAndNetworkTests(t);
     runFastLayerAndSerializationTests(t);
-    runConvAndPoolTests(t);
+    runConvTests(t);
+    runPoolTests(t);
     t.summary();
     return t.allPassed() ? 0 : 1;
 }

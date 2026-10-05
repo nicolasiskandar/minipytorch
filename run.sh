@@ -2,15 +2,27 @@
 cd "$(dirname "$0")" || exit 1
 
 py_tests='
-import sys, os, glob
+import sys, os, glob, importlib
 sys.path.insert(0, os.getcwd())
-for f in sorted(glob.glob("tests_py/*.py")):
-    if f.endswith("__init__.py"): continue
-    mod = os.path.basename(f)[:-3]
-    m = __import__("tests_py."+mod, fromlist=[""])
-    for k in dir(m):
-        if k.startswith("test_"): getattr(m,k)()
-print("all python tests passed")
+# recursive: tests_py/nn/*.py and friends are picked up alongside tests_py/*.py
+files = [f for f in sorted(glob.glob("tests_py/**/*.py", recursive=True))
+         if os.path.basename(f) != "__init__.py"]
+if not files:
+    raise SystemExit("no python tests found under tests_py/")
+total = 0
+ran = []
+for f in files:
+    mod = f[:-3].replace(os.sep, ".")
+    m = importlib.import_module(mod)
+    names = sorted(k for k in dir(m) if k.startswith("test_"))
+    for k in names:
+        getattr(m, k)()
+    if names:
+        ran.append((mod, len(names)))
+    total += len(names)
+for mod, n in ran:
+    print(f"  {mod}: {n}")
+print(f"all python tests passed ({total} in {len(ran)} modules)")
 '
 
 case "$1" in

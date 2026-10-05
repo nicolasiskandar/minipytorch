@@ -46,9 +46,16 @@ set(ASM_SOURCES
   ${BACKEND}/asm/kernels/losses.S
 )
 
-# Python bindings
+# Python bindings. One translation unit per backend subsystem, assembled by
+# module.cpp; keep this list explicit so a new file is a deliberate addition.
 pybind11_add_module(_minipytorch
-  src_py/bindings.cpp
+  src_py/bindings/module.cpp
+  src_py/bindings/kernels.cpp
+  src_py/bindings/losses.cpp
+  src_py/bindings/enums.cpp
+  src_py/bindings/fast_layer.cpp
+  src_py/bindings/conv.cpp
+  src_py/bindings/pool.cpp
   ${CPP_SOURCES}
   ${ASM_SOURCES}
 )
