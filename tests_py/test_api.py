@@ -381,3 +381,86 @@ def test_parameters_yield_stable_handles():
     assert all(a is b for a, b in zip(first, second))
     assert [p.kind for p in first] == ['weight', 'bias']
     assert all(p.layer is lin for p in first)
+
+
+def test_save_load_roundtrip_all_activations():
+    from core import nn, io
+    import numpy as np
+    import tempfile
+    import os
+
+    x = np.array([0.5, -0.3])
+    for act in ['sigmoid', 'tanh', 'relu', 'relu6', 'leaky_relu']:
+        l1 = nn.Linear(2, 3, activation=act)
+        l2 = nn.Linear(3, 1, activation=act)
+        seq = nn.Sequential(l1, l2)
+        expected = seq(x)
+
+        f = tempfile.mktemp()
+        try:
+            io.save_model(seq, f)
+            reloaded = io.load_model(f)
+        finally:
+            if os.path.exists(f):
+                os.remove(f)
+
+        assert int(reloaded.layers[0].activation_kind) == int(l1.activation_kind), act
+        assert int(reloaded.layers[1].activation_kind) == int(l2.activation_kind), act
+        assert np.allclose(reloaded(x), expected), act
+
+
+def test_save_model_writes_activation_name_verbatim():
+    from core import nn, io
+    import tempfile
+    import os
+
+    for act in ['relu6', 'leaky_relu']:
+        seq = nn.Sequential(nn.Linear(2, 2, activation=act))
+        f = tempfile.mktemp()
+        try:
+            io.save_model(seq, f)
+            with open(f, "r", encoding="utf-8") as fh:
+                text = fh.read()
+        finally:
+            if os.path.exists(f):
+                os.remove(f)
+        assert act in text, act
+        assert "sigmoid" not in text, act
+
+
+def test_load_model_rejects_unknown_activation():
+    from core import io
+    import tempfile
+    import os
+
+    f = tempfile.mktemp()
+    try:
+        with open(f, "w", encoding="utf-8") as out:
+            out.write("1\n2\ngelu 0.5 1.0 2.0\ngelu 0.5 3.0 4.0\n")
+        try:
+            io.load_model(f)
+            raise AssertionError("expected ValueError for unknown activation")
+        except ValueError:
+            pass
+    finally:
+        if os.path.exists(f):
+            os.remove(f)
+
+
+def test_load_model_rejects_malformed_bias():
+    from core import io
+    import tempfile
+    import os
+
+    f = tempfile.mktemp()
+    try:
+        with open(f, "w", encoding="utf-8") as out:
+            out.write("1\n1\nrelu notanumber 1.0 2.0\n")
+        try:
+            io.load_model(f)
+            raise AssertionError("expected ValueError for malformed bias")
+        except ValueError:
+            pass
+    finally:
+        if os.path.exists(f):
+            os.remove(f)

@@ -9,27 +9,27 @@ from .nn import Linear, Sequential
 from .activations import ActivationKind
 
 _ACTIVATION_NAMES = {
-    ActivationKind.SIGMOID: "sigmoid",
-    ActivationKind.TANH: "tanh",
-    ActivationKind.RELU: "relu",
+    int(ActivationKind.SIGMOID): "sigmoid",
+    int(ActivationKind.TANH): "tanh",
+    int(ActivationKind.RELU): "relu",
+    int(ActivationKind.RELU6): "relu6",
+    int(ActivationKind.LEAKYRELU): "leaky_relu",
 }
 
 _REVERSE_ACTIVATION_NAMES = {
     "sigmoid": ActivationKind.SIGMOID,
     "tanh": ActivationKind.TANH,
     "relu": ActivationKind.RELU,
+    "relu6": ActivationKind.RELU6,
+    "leaky_relu": ActivationKind.LEAKYRELU,
 }
 
 
 def _get_activation_name(kind: ActivationKind) -> str:
-    if hasattr(kind, "value"):
-        try:
-            kind_val = ActivationKind(kind.value)
-        except Exception:
-            kind_val = kind
-    else:
-        kind_val = kind
-    return _ACTIVATION_NAMES.get(kind_val, "sigmoid")
+    name = _ACTIVATION_NAMES.get(int(kind))
+    if name is None:
+        raise ValueError(f"no save format for activation kind {int(kind)}")
+    return name
 
 
 def save_model(model: Any, filename: str) -> None:
@@ -87,12 +87,13 @@ def load_model(filename: str) -> Sequential:
                 i -= 1
                 continue
             act_name = parts[0]
-            act_kind = _REVERSE_ACTIVATION_NAMES.get(act_name, ActivationKind.SIGMOID)
+            if act_name not in _REVERSE_ACTIVATION_NAMES:
+                raise ValueError(
+                    f"unknown activation {act_name!r} on line {idx} of {filename!r}"
+                )
+            act_kind = _REVERSE_ACTIVATION_NAMES[act_name]
             # bias is next
-            try:
-                bias_val = float(parts[1])
-            except Exception:
-                bias_val = 0.0
+            bias_val = float(parts[1])
             # weights
             wparts = parts[2:] if len(parts) > 2 else []
             weights = [float(p) for p in wparts]
