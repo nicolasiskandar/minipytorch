@@ -32,6 +32,8 @@ set(CPP_SOURCES
   ${BACKEND}/src/network.cpp
   ${BACKEND}/src/neuron.cpp
   ${BACKEND}/src/serialize.cpp
+  ${BACKEND}/src/conv.cpp
+  ${BACKEND}/src/pool.cpp
 )
 
 # ASM kernel sources

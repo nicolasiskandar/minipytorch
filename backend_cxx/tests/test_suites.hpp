@@ -6,3 +6,4 @@ void runActivationAndKernelTests(TestRunner& t);
 void runNeuronAndLayerTests(TestRunner& t);
 void runLossAndNetworkTests(TestRunner& t);
 void runFastLayerAndSerializationTests(TestRunner& t);
+void runConvAndPoolTests(TestRunner& t);
