@@ -32,18 +32,6 @@ class Module:
             else:
                 yield child
 
-    def named_modules(self):
-        yield "", self
-        for name, child in self.named_children():
-            if hasattr(child, "named_modules"):
-                for cname, cmod in child.named_modules():
-                    if cname:
-                        yield f"{name}.{cname}", cmod
-                    else:
-                        yield name, cmod
-            else:
-                yield name, child
-
     def zero_grad(self):
         return self
 

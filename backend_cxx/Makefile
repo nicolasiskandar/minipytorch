@@ -1,12 +1,11 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -Iinclude -O2
+CXXFLAGS := -std=c++17 -Wall -Wextra -Iinclude -Iexperiments -O2
 
-CPP_SRC := src/activations.cpp src/fastLayer.cpp src/layer.cpp src/losses.cpp \
-	src/network.cpp src/neuron.cpp src/serialize.cpp \
+CPP_SRC := src/activations.cpp src/fastLayer.cpp src/losses.cpp \
 	src/conv.cpp src/pool.cpp
 ASM_SRC := asm/kernels/dot_product.S asm/kernels/activations.S \
 	asm/kernels/fast_layer.S asm/kernels/updates.S \
-	asm/kernels/neuron.S asm/kernels/losses.S
+	asm/kernels/losses.S
 LIB_SRC := $(CPP_SRC) $(ASM_SRC)
 
 TEST_SRC := tests/test_runner.cpp tests/*_tests.cpp $(LIB_SRC)

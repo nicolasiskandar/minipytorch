@@ -1,14 +1,9 @@
-#include <cstdio>
-#include <random>
+#include <cstddef>
 #include <vector>
 
 #include "detail/nn_asm.hpp"
 #include "fastLayer.hpp"
-#include "layer.hpp"
 #include "losses.hpp"
-#include "network.hpp"
-#include "neuron.hpp"
-#include "serialize.hpp"
 #include "test_runner.hpp"
 #include "test_suites.hpp"
 
@@ -121,46 +116,11 @@ void testFastLayerApplyGradientsBeforeBackward(TestRunner& t) {
     );
 }
 
-void testSerialization(TestRunner& t) {
-    NeuralNetwork network({
-        Layer({Neuron({0.5, -0.3}, 0.1, Tanh), Neuron({0.8, 0.2}, -0.5, ReLU)}),
-        Layer({Neuron({0.4, -0.6}, 0.0, Sigmoid)}),
-    });
-    const std::vector<double> input = {1.0, 0.5};
-    const std::vector<double> before = network.predict(input);
-    const char* path = "/tmp/test_roundtrip.txt";
-    saveNetwork(network, path);
-    NeuralNetwork loaded = loadNetwork(path);
-    const std::vector<double> after = loaded.predict(input);
-    t.check(before.size() == after.size(), "Serialized network output size");
-    t.checkNear(
-        before[0], after[0], 1e-12, "Serialized network prediction matches"
-    );
-    std::remove(path);
-
-    NeuralNetwork allActivations({Layer(
-        {Neuron({1.0}, 0.0, Sigmoid), Neuron({1.0}, 0.0, Tanh),
-         Neuron({1.0}, 0.0, ReLU)}
-    )});
-    const char* activationPath = "/tmp/test_activations.txt";
-    std::vector<double> activationBefore = allActivations.predict({2.0});
-    saveNetwork(allActivations, activationPath);
-    NeuralNetwork activationLoaded = loadNetwork(activationPath);
-    std::vector<double> activationAfter = activationLoaded.predict({2.0});
-    for (std::size_t i = 0; i < activationBefore.size(); ++i)
-        t.checkNear(
-            activationBefore[i], activationAfter[i], 1e-12,
-            "Serialization preserves activation"
-        );
-    std::remove(activationPath);
-}
-
 }  // namespace
 
-void runFastLayerAndSerializationTests(TestRunner& t) {
+void runFastLayerTests(TestRunner& t) {
     testFastLayer(t);
     testAssemblyGradientUpdate(t);
     testFastLayerZeroGradients(t);
     testFastLayerApplyGradientsBeforeBackward(t);
-    testSerialization(t);
 }

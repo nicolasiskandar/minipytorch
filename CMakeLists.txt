@@ -27,11 +27,7 @@ include_directories(${BACKEND}/include/detail)
 set(CPP_SOURCES
   ${BACKEND}/src/activations.cpp
   ${BACKEND}/src/fastLayer.cpp
-  ${BACKEND}/src/layer.cpp
   ${BACKEND}/src/losses.cpp
-  ${BACKEND}/src/network.cpp
-  ${BACKEND}/src/neuron.cpp
-  ${BACKEND}/src/serialize.cpp
   ${BACKEND}/src/conv.cpp
   ${BACKEND}/src/pool.cpp
 )
@@ -42,7 +38,6 @@ set(ASM_SOURCES
   ${BACKEND}/asm/kernels/activations.S
   ${BACKEND}/asm/kernels/fast_layer.S
   ${BACKEND}/asm/kernels/updates.S
-  ${BACKEND}/asm/kernels/neuron.S
   ${BACKEND}/asm/kernels/losses.S
 )
 

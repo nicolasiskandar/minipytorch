@@ -46,7 +46,6 @@ __all__ = [
     "optim",
     "Linear",
     "Sequential",
-    "ModuleList",
     "Softmax",
     "MSELoss",
     "BCELoss",

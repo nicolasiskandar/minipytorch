@@ -1,4 +1,4 @@
-"""Module/Parameter plumbing, the containers (Sequential, ModuleList), Flatten."""
+"""Module/Parameter plumbing, the Sequential container, and Flatten."""
 
 import numpy as np
 

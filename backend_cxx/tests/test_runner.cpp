@@ -5,9 +5,8 @@
 int main() {
     TestRunner t;
     runActivationAndKernelTests(t);
-    runNeuronAndLayerTests(t);
-    runLossAndNetworkTests(t);
-    runFastLayerAndSerializationTests(t);
+    runLossTests(t);
+    runFastLayerTests(t);
     runConvTests(t);
     runPoolTests(t);
     t.summary();

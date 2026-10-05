@@ -1,22 +1,18 @@
 #include <iostream>
 #include <random>
 
-#include "layer.hpp"
 #include "losses.hpp"
-#include "network.hpp"
-#include "neuron.hpp"
+#include "mlp.hpp"
 
 int main() {
     std::mt19937 rng(2);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    NeuralNetwork net({
-      Layer({
-          Neuron({dist(rng), dist(rng)}, dist(rng), Tanh),
-          Neuron({dist(rng), dist(rng)}, dist(rng), Tanh)
-      }),
-      Layer({Neuron({dist(rng), dist(rng)}, dist(rng), Sigmoid)})
-    });
+    ExperimentMlp net(
+        2, 2, 1,
+        randomLayerWeights(rng, dist, 2, 2), randomLayerWeights(rng, dist, 1, 2),
+        randomLayerWeights(rng, dist, 2, 1), randomLayerWeights(rng, dist, 1, 1)
+    );
 
     std::vector<std::vector<double>> inputs = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
     std::vector<std::vector<double>> targets = {{0}, {1}, {1}, {0}};

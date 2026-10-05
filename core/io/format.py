@@ -1,11 +1,4 @@
-"""On-disk format constants and small text helpers.
-
-The save format has two incompatible shapes and ``load_model`` sniffs the first
-non-blank line to tell them apart: a bare integer means the legacy
-Linear-only positional format, anything else is compared against
-:data:`_FORMAT_TAG`. Do not unify these -- several tests assert on the legacy
-text byte-for-byte.
-"""
+"""On-disk format constants and small text helpers."""
 
 from ..activations import ActivationKind
 

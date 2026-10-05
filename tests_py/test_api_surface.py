@@ -11,7 +11,6 @@ CORE_ALL = [
     "Linear",
     "MSELoss",
     "MaxPool2d",
-    "ModuleList",
     "ReLU",
     "ReLU6",
     "SGD",
@@ -64,7 +63,6 @@ NN_ALL = [
     "Linear",
     "MaxPool2d",
     "Module",
-    "ModuleList",
     "Parameter",
     "ReLU",
     "ReLU6",
@@ -87,12 +85,6 @@ NN_NOT_IN_ALL = [
 ]
 
 ACTIVATION_KIND_MEMBERS = ["SIGMOID", "TANH", "RELU", "RELU6", "LEAKYRELU", "LEAKY_RELU"]
-
-LEAF_MODULE_NAMES = [
-    "activations", "api", "base", "containers", "conv", "enums",
-    "fast_layer", "format", "kernels", "legacy", "linear", "losses",
-    "module", "optim", "params", "pool", "registry", "reshape", "tagged",
-]
 
 ACTIVATIONS_ALL = [
     "ActivationKind",
@@ -158,7 +150,6 @@ MODULE_SUBCLASSES = [
     "LeakyReLU",
     "Linear",
     "MaxPool2d",
-    "ModuleList",
     "ReLU",
     "ReLU6",
     "Sequential",
@@ -502,30 +493,20 @@ def test_leaky_relu_slope_survives_the_text_format():
         )
 
 
-def test_io_legacy_detection_still_finds_linear_only():
-    """Asserts on the written bytes, not on a private helper.
-
-    Linear-only networks must keep the untagged positional layout; anything
-    else gets the v2 tag. Checking the first line exercises the same dispatch
-    the old `_is_legacy_linear_only` helper drove, without the test depending on
-    where that helper happens to live.
-    """
-    import tempfile
+def test_every_save_is_tagged_including_linear_only():
+    """One format means the tag is on every file, Linear-only or not."""
     import os
+    import tempfile
 
     import numpy as np
     from core import io, nn
 
     linear_only = nn.Sequential(nn.Linear(2, 2), nn.Linear(2, 1))
     with tempfile.TemporaryDirectory() as tmp:
-        path = os.path.join(tmp, "legacy.mpk")
+        path = os.path.join(tmp, "linear_only.mpk")
         io.save_model(linear_only, path)
         with open(path, encoding="utf-8") as fh:
-            legacy_first = fh.readline().strip()
-        assert legacy_first == "2", (
-            f"Linear-only save must start with a bare layer count, got "
-            f"{legacy_first!r}"
-        )
+            assert fh.readline().strip() == io._FORMAT_TAG
         reloaded = io.load_model(path)
         assert [type(layer) for layer in reloaded.layers] == [nn.Linear, nn.Linear]
 
@@ -537,10 +518,8 @@ def test_io_legacy_detection_still_finds_linear_only():
         path = os.path.join(tmp, "tagged.mpk")
         io.save_model(with_conv, path)
         with open(path, encoding="utf-8") as fh:
-            tagged_first = fh.readline().strip()
-        assert tagged_first == io._FORMAT_TAG, (
-            f"a non-Linear network must be tagged, got {tagged_first!r}"
-        )
+            assert fh.readline().strip() == io._FORMAT_TAG
+        assert len(io.load_model(path).layers) == 2
 
 
 def test_linear_carries_activation_kind_and_leaky_module_carries_slope():

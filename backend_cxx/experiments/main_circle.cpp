@@ -1,10 +1,8 @@
 #include <iostream>
 #include <random>
 
-#include "layer.hpp"
 #include "losses.hpp"
-#include "network.hpp"
-#include "neuron.hpp"
+#include "mlp.hpp"
 
 int main() {
     std::mt19937 dataRng(7);
@@ -36,17 +34,13 @@ int main() {
     std::mt19937 wRng(3);
     std::uniform_real_distribution<double> wDist(-1.0, 1.0);
 
-    std::vector<Neuron> hiddenNeurons;
-    for (int i = 0; i < 8; ++i)
-        hiddenNeurons.push_back(
-            Neuron({wDist(wRng), wDist(wRng)}, wDist(wRng), Tanh)
-        );
-
-    std::vector<double> outW;
-    for (int i = 0; i < 8; ++i) outW.push_back(wDist(wRng));
-
-    NeuralNetwork net(
-        {Layer(hiddenNeurons), Layer({Neuron(outW, wDist(wRng), Sigmoid)})}
+    constexpr std::size_t hiddenUnits = 8;
+    ExperimentMlp net(
+        2, hiddenUnits, 1,
+        randomLayerWeights(wRng, wDist, 2, hiddenUnits),
+        randomLayerWeights(wRng, wDist, 1, hiddenUnits),
+        randomLayerWeights(wRng, wDist, hiddenUnits, 1),
+        randomLayerWeights(wRng, wDist, 1, 1)
     );
 
     const double learningRate = 0.1;

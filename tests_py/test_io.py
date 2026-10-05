@@ -1,8 +1,8 @@
-"""Serialization: legacy text format, minipytorch-v2 tagged format, and rejects."""
+"""Serialization: the minipytorch-v2 format, its round-trips, and its rejects."""
 
 import numpy as np
 
-from tests_py._helpers import model_path
+from tests_py._helpers import load_model_error, model_path
 
 
 def test_save_load_roundtrip():
@@ -55,29 +55,29 @@ def test_save_model_writes_activation_name_verbatim():
 
 
 def test_load_model_rejects_unknown_activation():
-    from core import io
-
     with model_path() as f:
         with open(f, "w", encoding="utf-8") as out:
-            out.write("1\n2\ngelu 0.5 1.0 2.0\ngelu 0.5 3.0 4.0\n")
-        try:
-            io.load_model(f)
-            raise AssertionError("expected ValueError for unknown activation")
-        except ValueError:
-            pass
+            out.write("minipytorch-v2\n1\nlinear 2 1 gelu\n1\n0.5 1.0 2.0\n")
+        message = load_model_error(f)
+    assert "unknown activation" in message, message
+    assert "gelu" in message, message
 
 
 def test_load_model_rejects_malformed_bias():
-    from core import io
-
     with model_path() as f:
         with open(f, "w", encoding="utf-8") as out:
-            out.write("1\n1\nrelu notanumber 1.0 2.0\n")
-        try:
-            io.load_model(f)
-            raise AssertionError("expected ValueError for malformed bias")
-        except ValueError:
-            pass
+            out.write("minipytorch-v2\n1\nlinear 2 1 relu\n1\nnotanumber 1.0 2.0\n")
+        message = load_model_error(f)
+    assert "could not convert string to float" in message, message
+
+
+def test_load_model_rejects_untagged_file():
+    """The retired Linear-only positional layout must not parse."""
+    with model_path() as f:
+        with open(f, "w", encoding="utf-8") as out:
+            out.write("1\n1\nrelu 0.5 1.0 2.0\n")
+        message = load_model_error(f)
+    assert "not a minipytorch-v2 model" in message, message
 
 
 def test_save_load_roundtrip_conv_pool_network():

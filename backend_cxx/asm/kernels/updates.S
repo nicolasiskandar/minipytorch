@@ -20,22 +20,4 @@ nn_apply_gradients_f64:
 .Lapply_gradients_done:
   ret
 
-  .globl nn_accumulate_f64
-  .type nn_accumulate_f64, @function
-
-# void nn_accumulate_f64(double* destination, const double* source,
-#                        size_t count)
-nn_accumulate_f64:
-  xorq  %rax, %rax
-.Laccumulate_loop:
-  cmpq  %rdx, %rax
-  jae   .Laccumulate_done
-  movsd (%rsi, %rax, 8), %xmm0
-  addsd (%rdi, %rax, 8), %xmm0
-  movsd %xmm0, (%rdi, %rax, 8)
-  incq  %rax
-  jmp   .Laccumulate_loop
-.Laccumulate_done:
-  ret
-
   .section .note.GNU-stack,"",@progbits

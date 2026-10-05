@@ -51,9 +51,6 @@ extern "C" void nn_apply_gradients_f64(
     double learningRate
 );
 
-extern "C" void
-nn_accumulate_f64(double* destination, const double* source, std::size_t count);
-
 extern "C" void nn_mean_squared_error_f64(
     const double* predicted,
     const double* target,
@@ -62,30 +59,8 @@ extern "C" void nn_mean_squared_error_f64(
     double* loss
 );
 
-extern "C" double nn_neuron_forward_f64(
-    const double* input,
-    const double* weights,
-    std::size_t count,
-    double bias,
-    int activationKind
-);
-
-extern "C" void nn_neuron_backward_f64(
-    const double* weights,
-    const double* input,
-    std::size_t count,
-    double output,
-    double dLoss_dOutput,
-    int activationKind,
-    double* gradWeights,
-    double* gradBias,
-    double* dLoss_dInput
-);
-
 extern "C" double nn_relu6_f64(double value);
 extern "C" double nn_relu6_derivative_from_output_f64(double output);
-
-
 
 extern "C" double nn_leaky_relu_f64(double value);
 extern "C" double nn_leaky_relu_derivative_from_output_f64(double output);

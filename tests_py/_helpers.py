@@ -24,6 +24,21 @@ def model_path(suffix=".mpk"):
         yield os.path.join(tmp, "model" + suffix)
 
 
+def load_model_error(path):
+    """Call ``load_model(path)`` and return the ValueError it raised.
+
+    Returning the message lets a test pin *why* it failed; every rejection path
+    raises ValueError, so a bare assert would pass on the wrong one.
+    """
+    from core import io
+
+    try:
+        io.load_model(path)
+    except ValueError as exc:
+        return str(exc)
+    raise AssertionError(f"expected load_model({path!r}) to raise ValueError")
+
+
 class FakeParam:
     """Minimal stand-in for ``nn.Parameter``, for optimizer formula tests.
 
