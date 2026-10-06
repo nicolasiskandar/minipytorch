@@ -334,7 +334,7 @@ def test_module_subclass_relationships_hold():
 def test_activation_modules_implement_backward():
     from core import nn
 
-    for name in ("ReLU", "Sigmoid", "Tanh", "LeakyReLU", "ReLU6"):
+    for name in ("ReLU", "Sigmoid", "Tanh", "LeakyReLU", "ReLU6", "Softmax"):
         cls = getattr(nn, name)
         assert callable(getattr(cls, "backward", None)), (
             f"nn.{name} has no backward; a Sequential backward loop silently "
@@ -342,26 +342,32 @@ def test_activation_modules_implement_backward():
         )
 
 
-def test_softmax_backward_is_still_missing():
-    """Documents a known gap, not an endorsement.
+def test_flatten_backward_reshapes_to_its_input():
+    import numpy as np
 
-    nn.Softmax implements forward only. A manual backward loop skips layers
-    without `backward`, so a Sequential ending in Softmax trains against a
-    gradient that never passed the softmax Jacobian. Deliberately asserted here
-    so that whoever implements it gets told to fold Softmax into
-    test_activation_modules_implement_backward instead of quietly deleting this.
-    """
     from core import nn
 
-    assert not hasattr(nn.Softmax, "backward")
+    # A Flatten joins a Conv/max-pool feature map to a Linear. Its backward is
+    # the identity reshape: a flat gradient with the same element count must be
+    # handed back to the pre-flatten layer in the pre-flatten shape.
+    f = nn.Flatten()
+    out = f(np.arange(24.0).reshape(2, 3, 4))
+    assert out.shape == (2, 12)
+    grad = f.backward(np.asarray(out) * 5.0)
+    assert grad.shape == (2, 3, 4)
+    assert np.allclose(grad.reshape(-1), (np.arange(24.0) * 5.0))
 
 
-def test_flatten_has_no_backward_by_design():
+def test_sequential_backward_cascades_layers():
+    import numpy as np
+
     from core import nn
 
-    # Its gradient is the identity reshape, so the caller's gradient flows
-    # through untouched. Documented as intentional, not a missing derivative.
-    assert not hasattr(nn.Flatten, "backward")
+    net = nn.Sequential(nn.ReLU(), nn.Flatten())
+    out = net(np.arange(6.0).reshape(2, 3))
+    grad = net.backward(np.ones_like(out))
+    # ReLU kills the negative half; backprop preserves shape.
+    assert grad.shape == (2, 3)
 
 
 def test_sequential_is_fully_duck_typed():

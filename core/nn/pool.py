@@ -30,9 +30,30 @@ class MaxPool2d(Module):
         else:
             self.stride = _pair(stride)
         self.padding = _pair(padding)
+        self._validate_square("MaxPool2d")
         self._last_shape = None
         self._last_out_shape = None
         self._indices = None
+
+    def _validate_square(self, name):
+        if min(self.kernel_size) < 1 or min(self.stride) < 1 or min(self.padding) < 0:
+            raise ValueError(
+                f"{name} needs kernel_size >= 1, stride >= 1, padding >= 0, "
+                f"got kernel={self.kernel_size} stride={self.stride} "
+                f"padding={self.padding}"
+            )
+        if (
+            self.kernel_size[0] != self.kernel_size[1]
+            or self.stride[0] != self.stride[1]
+            or self.padding[0] != self.padding[1]
+        ):
+            raise ValueError(
+                f"{name} only supports square kernel, stride, and padding in "
+                "this version (the native kernel takes a single value per "
+                "argument that applies to both dims); got "
+                f"kernel={self.kernel_size} stride={self.stride} "
+                f"padding={self.padding}"
+            )
 
     def forward(self, x):
         x = np.asarray(x, dtype=float)
@@ -65,6 +86,12 @@ class MaxPool2d(Module):
             raise RuntimeError("MaxPool2d.backward called before any forward")
         c, h, w = self._last_shape
         oc, oh, ow = self._last_out_shape
+        expected = oc * oh * ow
+        if dloss_dout.size != expected:
+            raise ValueError(
+                f"MaxPool2d.backward expected {expected} gradient values "
+                f"({oc} x {oh} x {ow}), got {dloss_dout.size}"
+            )
         grad_in = maxpool2d_backward(
             dloss_dout, self._indices, c, h, w, oc, oh, ow
         )
@@ -82,8 +109,29 @@ class AvgPool2d(Module):
         else:
             self.stride = _pair(stride)
         self.padding = _pair(padding)
+        self._validate_square("AvgPool2d")
         self._last_shape = None
         self._last_out_shape = None
+
+    def _validate_square(self, name):
+        if min(self.kernel_size) < 1 or min(self.stride) < 1 or min(self.padding) < 0:
+            raise ValueError(
+                f"{name} needs kernel_size >= 1, stride >= 1, padding >= 0, "
+                f"got kernel={self.kernel_size} stride={self.stride} "
+                f"padding={self.padding}"
+            )
+        if (
+            self.kernel_size[0] != self.kernel_size[1]
+            or self.stride[0] != self.stride[1]
+            or self.padding[0] != self.padding[1]
+        ):
+            raise ValueError(
+                f"{name} only supports square kernel, stride, and padding in "
+                "this version (the native kernel takes a single value per "
+                "argument that applies to both dims); got "
+                f"kernel={self.kernel_size} stride={self.stride} "
+                f"padding={self.padding}"
+            )
 
     def forward(self, x):
         x = np.asarray(x, dtype=float)
@@ -115,6 +163,12 @@ class AvgPool2d(Module):
             raise RuntimeError("AvgPool2d.backward called before any forward")
         c, h, w = self._last_shape
         oc, oh, ow = self._last_out_shape
+        expected = oc * oh * ow
+        if dloss_dout.size != expected:
+            raise ValueError(
+                f"AvgPool2d.backward expected {expected} gradient values "
+                f"({oc} x {oh} x {ow}), got {dloss_dout.size}"
+            )
         grad_in = avgpool2d_backward(
             dloss_dout,
             c,

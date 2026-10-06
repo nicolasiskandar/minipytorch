@@ -15,6 +15,24 @@ make bench    # FastLayer vs Layer benchmark
 make clean    # remove binaries
 ```
 
+## Python API
+
+The Python bindings (`core/`) wrap the C++ backend. The compiled extension and
+the prebuilt C++ binaries are part of a build tree, so a plain environment
+(no `pip install`) is enough to run the Python tests:
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+
+./run.sh test-py    # Python test suite
+./run.sh test-all   # C++ and Python tests
+```
+
+`core/` imports the extension `_minipytorch`, which must exist under
+`.venv/lib/python*/site-packages/core/` or `PYTHONPATH` must include the build
+tree.
+
 ## Project Structure
 
 ```

@@ -49,6 +49,27 @@ def test_linear_activation_parity_shapes():
         assert out.shape == (3,)
 
 
+def test_linear_defaults_to_sigmoid_not_identity():
+    """Documents a wart, not an endorsement.
+
+    ``nn.Linear`` is the only layer here that fuses an activation, and the one
+    it picks when you pass no ``activation=`` is sigmoid -- not the identity
+    that the name implies. So ``Linear(2, 2)(zeros)`` is ``[0.5, 0.5]``, and
+    every gradient through an unparameterised Linear is silently scaled by
+    ``sigmoid'(out)``.
+
+    Pinned because it is load-bearing: 28 call sites in the suite construct a
+    Linear without an activation, and the tagged save format writes the resolved
+    kind, so the default has to stay explicit. Anything wanting a plain affine
+    layer has no identity activation to select yet.
+    """
+    from core import nn
+
+    layer = nn.Linear(2, 2, weights=np.zeros(4), bias=np.zeros(2))
+    assert layer.activation_kind == nn.ActivationKind.SIGMOID
+    assert np.allclose(layer(np.zeros(2)), [0.5, 0.5], atol=1e-7)
+
+
 def test_numerical_gradients_mse():
     from core import nn, losses
 

@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from tests_py._helpers import central_diff, EPS
+
 
 def test_leaky_relu_activation():
     from core import activations, nn
@@ -87,11 +89,141 @@ def test_activation_modules_in_sequential_have_no_parameters():
 def test_activation_modules_have_backward():
     from core import nn
 
-    for cls in (nn.ReLU, nn.Sigmoid, nn.Tanh, nn.ReLU6, nn.LeakyReLU):
+    for cls in (nn.ReLU, nn.Sigmoid, nn.Tanh, nn.ReLU6, nn.LeakyReLU, nn.Softmax):
         layer = cls()
         out = layer(np.array([0.5, -1.5]))
-        grad = layer.backward(np.array([1.0, 1.0]))
+        grad = layer.backward(np.ones_like(out))
         assert np.asarray(grad).shape == (2,), cls.__name__
+
+
+def test_softmax_backward_matches_central_differences():
+    """Gradient-check the Jacobian itself, against the function it defines.
+
+    Drives ``L = <g, softmax(x)>`` so the finite difference exercises the same
+    quantity ``backward`` is supposed to return.
+    """
+    from core import nn
+
+    x = np.array([0.7, -1.2, 2.3, 0.1])
+    g = np.array([1.0, 2.0, -0.5, 3.0])
+    layer = nn.Softmax()
+    layer(x)
+    analytic = layer.backward(g)
+
+    def total(xx):
+        return float(np.sum(g * nn.Softmax()(xx)))
+
+    numeric = np.array([
+        central_diff(
+            total(x + EPS * np.eye(x.size)[j]),
+            total(x - EPS * np.eye(x.size)[j]),
+        )
+        for j in range(x.size)
+    ])
+    assert np.allclose(numeric, analytic, atol=1e-6), (numeric, analytic)
+
+
+def test_softmax_backward_is_the_jacobian_transpose():
+    """Closed form: grad = y * (g - dot(y, g)).
+
+    Written out so a wrong-but-plausible variant fails. The two easy mistakes
+    are dropping the transpose (``g - y*sum(g)``, which is wrong because it
+    substitutes ``sum(g)`` for ``dot(y, g)``) and summing over the wrong axis,
+    which silently couples rows of a batch together.
+    """
+    from core import nn
+
+    x = np.array([0.7, -1.2, 2.3, 0.1])
+    g = np.array([1.0, 2.0, -0.5, 3.0])
+    layer = nn.Softmax()
+    y = layer(x)
+    assert np.allclose(layer.backward(g), y * (g - float(np.dot(y, g))))
+
+    # Not the transposed-looking variant, which drops the factor of y.
+    assert not np.allclose(layer.backward(g), g - y * g.sum())
+
+
+def test_softmax_backward_on_a_batch_reduces_per_row():
+    """A (N, C) input must reduce along C, never across N.
+
+    Summing over the whole batch would couple samples: one row's gradient would
+    depend on another row's incoming gradient.
+    """
+    from core import nn
+
+    x = np.array([[1.0, 2.0, 3.0], [0.5, -0.5, 0.0]])
+    g = np.array([[1.0, -1.0, 2.0], [3.0, 0.5, -2.0]])
+    layer = nn.Softmax()
+    y = layer(x)
+    grad = layer.backward(g)
+
+    expected = y * (g - np.sum(y * g, axis=1, keepdims=True))
+    assert np.allclose(grad, expected)
+    # Per-row sums vanish, the signature of the softmax Jacobian's null direction.
+    assert np.allclose(grad.sum(axis=1), 0.0)
+
+
+def test_softmax_backward_honours_a_non_default_dim():
+    from core import nn
+
+    x = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    g = np.ones((3, 2))
+    layer = nn.Softmax(dim=0)
+    y = layer(x)
+    grad = layer.backward(g)
+
+    assert np.allclose(grad, y * (g - np.sum(y * g, axis=0, keepdims=True)))
+    # Reductions ran down the columns, so each column sums to zero.
+    assert np.allclose(grad.sum(axis=0), 0.0)
+    assert not np.allclose(y, nn.Softmax()(x))
+
+
+def test_softmax_backward_before_forward_raises():
+    from core import nn
+
+    try:
+        nn.Softmax().backward(np.ones(2))
+        raise AssertionError("expected RuntimeError before any forward")
+    except RuntimeError as exc:
+        assert "before any forward" in str(exc), exc
+
+
+def test_softmax_in_front_of_cross_entropy_changes_the_answer():
+    """Documents a trap: ``CrossEntropyLoss`` already applies softmax.
+
+    ``loss_fn(logits)`` and ``loss_fn(nn.Softmax()(logits))`` are different
+    functions -- the second softmaxes twice -- so neither the loss nor the
+    gradient matches. Pinned as a divergence rather than an equality so that
+    someone "fixing" the apparent inconsistency learns that the composition
+    itself is the error.
+    """
+    from core import losses, nn
+
+    logits = np.array([[1.5, -0.5, 0.25], [0.3, 2.1, -1.4]])
+    target = np.array([0, 1])
+
+    loss_fn = losses.CrossEntropyLoss()
+    fused_loss, fused_grad = loss_fn(logits, target)
+
+    sm = nn.Softmax()
+    split_loss, grad_probs = loss_fn(sm(logits), target)
+    split_grad = sm.backward(grad_probs)
+
+    assert abs(split_loss - fused_loss) > 1e-3, "double softmax should differ"
+    assert not np.allclose(split_grad, fused_grad)
+    # The correct pairing is Linear -> CrossEntropyLoss, with no Softmax layer.
+    assert np.allclose(fused_grad, _softmax_minus_onehot(logits, target) / 2)
+
+
+def _softmax_minus_onehot(logits, target):
+    """The gradient CrossEntropyLoss folds in, spelled out independently."""
+    shifted = logits - np.max(logits, axis=1, keepdims=True)
+    probs = np.exp(shifted)
+    probs /= np.sum(probs, axis=1, keepdims=True)
+    grad = probs.copy()
+    for row, cls in enumerate(target):
+        grad[row, int(cls)] -= 1.0
+    return grad
 
 
 def test_activation_backward_before_forward_raises():

@@ -7,10 +7,17 @@ __all__ = ["MSELoss", "BCELoss", "CrossEntropyLoss", "mse_loss", "bce_loss"]
 
 class MSELoss:
     def forward(self, pred, target):
-        loss, grad_pred = mse_loss(
-            np.array(pred, dtype=float), np.array(target, dtype=float)
-        )
-        return float(loss), grad_pred
+        pred = np.array(pred, dtype=float)
+        target = np.array(target, dtype=float)
+        n = pred.size
+        if n == 0:
+            return 0.0, pred
+        # The native kernel returns 0.5 * sum((p - t)^2) with grad (p - t).
+        # Scale to PyTorch's 'mean' reduction so the loss magnitude does not
+        # grow with the batch size: mean((p - t)^2) and 2*(p - t)/n.
+        loss, grad = mse_loss(pred, target)
+        scale = 2.0 / n
+        return float(loss * scale), grad * scale
 
     def __call__(self, pred, target):
         return self.forward(pred, target)
@@ -43,10 +50,12 @@ class CrossEntropyLoss:
             p = p / (np.sum(p, axis=1, keepdims=True) + 1e-300)
             loss = 0.0
             grad = np.zeros_like(pred)
+            kept = 0
             for i in range(N):
                 t = target.flatten()[i]
                 if t == self.ignore_index:
                     continue
+                kept += 1
                 c = int(round(float(t)))
                 if c < 0 or c >= C:
                     c = 0
@@ -54,8 +63,9 @@ class CrossEntropyLoss:
                 loss -= np.log(pc + eps)
                 grad[i] = p[i].copy()
                 grad[i, c] -= 1.0
-            loss /= N if N > 0 else 1.0
-            grad /= N if N > 0 else 1.0
+            if kept:
+                loss /= kept
+                grad /= kept
             return float(loss), grad
         else:
             p = pred - np.max(pred)

@@ -52,17 +52,33 @@ class Linear(Module):
 
         self.activation_kind = kind
 
+        if not int(in_features) >= 0 or not int(out_features) >= 0:
+            raise ValueError(
+                f"nn.Linear needs non-negative in/out features, "
+                f"got in={in_features}, out={out_features}"
+            )
+
         if weights is None:
             rng = np.random.default_rng(42)
             w = rng.standard_normal(size=(out_features * in_features), dtype=float) * 0.1
             weights_arr = w
         else:
             weights_arr = np.array(weights, dtype=float).reshape(-1)
+            if weights_arr.size != in_features * out_features:
+                raise ValueError(
+                    f"nn.Linear expected {in_features * out_features} weight values "
+                    f"({in_features} in x {out_features} out), got {weights_arr.size}"
+                )
 
         if bias is None:
             bias_arr = np.zeros(out_features, dtype=float)
         else:
             bias_arr = np.array(bias, dtype=float).reshape(-1)
+            if bias_arr.size != out_features:
+                raise ValueError(
+                    f"nn.Linear expected {out_features} bias values, "
+                    f"got {bias_arr.size}"
+                )
 
         self._layer = FastLayer(
             num_inputs=in_features,
@@ -74,13 +90,35 @@ class Linear(Module):
 
         self._weight_parameter = Parameter(self, "weight")
         self._bias_parameter = Parameter(self, "bias")
+        self._has_forward = False
 
     def forward(self, x):
-        out = self._layer.forward(np.array(x, dtype=float))
+        x = np.array(x, dtype=float)
+        # The native FastLayer reads num_inputs doubles straight out of the
+        # buffer it is handed, so a short input is an out-of-bounds read: it
+        # silently consumes whatever follows in memory, which shows up much
+        # later as absurd gradients or a NaN loss. Reject the mismatch here.
+        if x.size != self.in_features:
+            raise ValueError(
+                f"nn.Linear expected {self.in_features} input values, "
+                f"got {x.size}"
+            )
+        out = self._layer.forward(x)
+        self._has_forward = True
         return out
 
     def backward(self, dloss_dout):
-        return self._layer.backward(np.array(dloss_dout, dtype=float))
+        if not getattr(self, "_has_forward", False):
+            raise RuntimeError(
+                "nn.Linear.backward called before any forward"
+            )
+        dloss_dout = np.array(dloss_dout, dtype=float)
+        if dloss_dout.size != self.out_features:
+            raise ValueError(
+                f"nn.Linear expected {self.out_features} gradient values, "
+                f"got {dloss_dout.size}"
+            )
+        return self._layer.backward(dloss_dout)
 
     def apply_gradients(self, lr=0.01):
         self._layer.apply_gradients(float(lr))

@@ -20,12 +20,21 @@ def manual_backward(net, grad_out):
 def test_conv2d_then_flatten_then_linear_end_to_end():
     from core import nn, losses, optim
 
+    # Widths have to match at every handoff. Conv 3x3 on a 4x4 input leaves a
+    # 2x2 map, MaxPool2d(2) collapses that to 1x1, so the flattened activation
+    # is 2 values (one per channel), not 2*2*2.
+    #
+    # This used to say Linear(2 * 2 * 2, 1). The native layer reads num_inputs
+    # doubles out of a 2-element buffer, so it consumed uninitialised memory:
+    # gradients came back as ~1e251, the loss went NaN, and the test still
+    # passed because it only asserted the output *shape*. nn.Linear now rejects
+    # the mismatch, which is what surfaced it.
     net = nn.Sequential(
         nn.Conv2d(1, 2, 3),
         nn.ReLU(),
         nn.MaxPool2d(2),
         nn.Flatten(),
-        nn.Linear(2 * 2 * 2, 1),
+        nn.Linear(2, 1),
         nn.Sigmoid(),
     )
     x = np.random.randn(1, 4, 4)

@@ -10,9 +10,12 @@ def save_model(model, filename: str) -> None:
         layers = list(model.layers)
     else:
         layers = [model]
+    training = model.training()
+
+    from .tagged import _flatten_seq
 
     with open(filename, "w", encoding="utf-8") as out:
-        _save_tagged(out, layers)
+        _save_tagged(out, _flatten_seq(layers), training=training)
 
 
 def load_model(filename: str):

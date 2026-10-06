@@ -3,6 +3,17 @@ __all__ = ["SGD", "Adam"]
 import numpy as np
 
 
+def _param_key(p):
+    """Stable identity for a trainable parameter.
+
+    Shared modules (a layer listed twice in a Sequential) hand the optimizer
+    several Parameter handles that wrap the same underlying storage. Keying on
+    (layer, kind) instead of the handle object means a duplicate handle never
+    double-applies gradients, and state survives the handles being rebuilt.
+    """
+    return id(p.layer), p.kind
+
+
 class SGD:
     def __init__(self, params, lr=0.01, momentum=0.0):
         self.lr = float(lr)
@@ -21,16 +32,15 @@ class SGD:
         return self
 
     def step(self):
-        if self.momentum == 0.0:
-            applied = set()
-            for p in self.params:
-                key = id(p.layer)
-                if key in applied:
-                    continue
-                applied.add(key)
+        applied = set()
+        for p in self.params:
+            key = _param_key(p)
+            if key in applied:
+                continue
+            applied.add(key)
+            if self.momentum == 0.0:
                 p.layer.apply_gradients(self.lr)
-        else:
-            for p in self.params:
+            else:
                 p.apply_gradients(self.lr, self.momentum)
         return self
 
@@ -61,8 +71,12 @@ class Adam:
 
     def step(self):
         self.t += 1
+        applied = set()
         for p in self.params:
-            key = id(p)
+            key = _param_key(p)
+            if key in applied:
+                continue
+            applied.add(key)
             grad = np.asarray(p.grad(), dtype=float)
             if self.m.get(key) is None or self.m[key].shape != grad.shape:
                 self.m[key] = np.zeros_like(grad)

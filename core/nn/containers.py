@@ -20,6 +20,13 @@ class Sequential(Module):
             out = layer(out) if hasattr(layer, "__call__") else layer.forward(out)
         return out
 
+    def backward(self, dloss_dout):
+        grad = dloss_dout
+        for layer in reversed(self.layers):
+            if hasattr(layer, "backward"):
+                grad = layer.backward(grad)
+        return grad
+
     def named_children(self):
         for i, layer in enumerate(self.layers):
             yield str(i), layer

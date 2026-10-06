@@ -19,9 +19,20 @@ from .format import (
 from .registry import _STATELESS_LAYERS
 
 
-def _save_tagged(out, layers):
+def _flatten_seq(layers):
+    """Recursively inline nested Sequentials so they can be saved."""
+    flat = []
+    for layer in layers:
+        if isinstance(layer, Sequential):
+            flat.extend(_flatten_seq(layer.layers))
+        else:
+            flat.append(layer)
+    return flat
+
+
+def _save_tagged(out, layers, training=True):
     out.write(f"{_FORMAT_TAG}\n")
-    out.write(f"{len(layers)}\n")
+    out.write(f"{len(layers)} {1 if training else 0}\n")
     for layer in layers:
         if isinstance(layer, Linear):
             out.write(
@@ -73,18 +84,46 @@ def _save_tagged(out, layers):
             elif tag == "dropout":
                 args = [repr(float(getattr(layer, "p", 0.5)))]
             elif tag == "flatten":
-                args = [str(int(layer.start_dim))]
+                args = [
+                    str(int(layer.start_dim)),
+                    str(int(layer.end_dim)),
+                ]
+            elif tag == "softmax":
+                args = [str(-1 if layer.dim is None else int(layer.dim))]
             out.write(f"{tag} {' '.join(args)}\n")
 
 
 def _load_tagged(lines, idx, filename):
     idx = _next_nonblank(lines, idx)
-    num_layers = int(lines[idx].strip())
+    if idx >= len(lines):
+        raise ValueError(f"truncated model in {filename!r}: no layer count")
+    try:
+        num_layers = int(lines[idx].split()[0])
+    except (IndexError, ValueError):
+        raise ValueError(
+            f"layer count is not an integer in {filename!r}"
+        )
+    mode_tokens = lines[idx].split()[1:]
+    if mode_tokens:
+        try:
+            training = bool(int(mode_tokens[0]))
+        except ValueError:
+            raise ValueError(
+                f"training flag is not 0 or 1 in {filename!r}"
+            )
+    else:
+        training = True
     idx += 1
+    if num_layers < 0:
+        raise ValueError(
+            f"negative layer count {num_layers} in {filename!r}"
+        )
 
     layers = []
     for _ in range(num_layers):
         idx = _next_nonblank(lines, idx)
+        if idx >= len(lines):
+            raise ValueError(f"truncated layer list in {filename!r}")
         parts = lines[idx].split()
         idx += 1
         if not parts:
@@ -94,8 +133,18 @@ def _load_tagged(lines, idx, filename):
         if tag == "linear":
             if len(parts) < 4:
                 raise ValueError(f"malformed linear layer in {filename!r}")
-            in_features = int(parts[1])
-            out_features = int(parts[2])
+            try:
+                in_features = int(parts[1])
+                out_features = int(parts[2])
+            except ValueError:
+                raise ValueError(
+                    f"linear layer has non-integer feature sizes in {filename!r}"
+                )
+            if in_features <= 0 or out_features <= 0:
+                raise ValueError(
+                    f"linear layer needs positive feature sizes, got in={parts[1]} "
+                    f"out={parts[2]} in {filename!r}"
+                )
             act_name = parts[3]
             if act_name not in _REVERSE_ACTIVATION_NAMES:
                 raise ValueError(
@@ -103,10 +152,27 @@ def _load_tagged(lines, idx, filename):
                 )
             act_kind = _REVERSE_ACTIVATION_NAMES[act_name]
             idx = _next_nonblank(lines, idx)
-            count = int(lines[idx].strip())
+            if idx >= len(lines):
+                raise ValueError(f"truncated linear layer in {filename!r}")
+            try:
+                count = int(lines[idx].strip())
+            except ValueError:
+                raise ValueError(
+                    f"linear weight count is not an integer in {filename!r}"
+                )
             idx += 1
+            if count != out_features:
+                raise ValueError(
+                    f"linear weight count {count} does not match out_features "
+                    f"{out_features} in {filename!r}"
+                )
             weights, biases = [], []
-            for _ in range(count):
+            for r in range(count):
+                if idx >= len(lines):
+                    raise ValueError(
+                        f"truncated linear weights: expected {count} rows, "
+                        f"got {r} in {filename!r}"
+                    )
                 fields = lines[idx].split()
                 idx += 1
                 if len(fields) < 1 + in_features:
@@ -125,14 +191,26 @@ def _load_tagged(lines, idx, filename):
         elif tag == "conv2d":
             if len(parts) < 8:
                 raise ValueError(f"malformed conv2d layer in {filename!r}")
-            in_ch, out_ch, kh, kw = (int(v) for v in parts[1:5])
-            stride, padding, has_bias = (int(v) for v in parts[5:8])
+            try:
+                in_ch, out_ch, kh, kw = (int(v) for v in parts[1:5])
+                stride, padding, has_bias = (int(v) for v in parts[5:8])
+            except ValueError:
+                raise ValueError(
+                    f"conv2d layer has non-integer arguments in {filename!r}"
+                )
             idx = _next_nonblank(lines, idx)
+            if idx >= len(lines):
+                raise ValueError(f"truncated conv2d layer in {filename!r}")
             counts = lines[idx].split()
             idx += 1
             if len(counts) < 2:
                 raise ValueError(f"malformed conv2d counts in {filename!r}")
-            weight_count, bias_count = int(counts[0]), int(counts[1])
+            try:
+                weight_count, bias_count = int(counts[0]), int(counts[1])
+            except ValueError:
+                raise ValueError(
+                    f"conv2d counts are not integers in {filename!r}"
+                )
             expected = out_ch * in_ch * kh * kw
             if weight_count != expected:
                 raise ValueError(
@@ -144,6 +222,11 @@ def _load_tagged(lines, idx, filename):
                     f"conv2d bias count {bias_count} is neither 0 nor {out_ch} "
                     f"in {filename!r}"
                 )
+            if bool(has_bias) != (bias_count > 0):
+                raise ValueError(
+                    f"conv2d has_bias={has_bias} disagrees with bias count "
+                    f"{bias_count} in {filename!r}"
+                )
             weights = [float(v) for v in lines[idx].split()]
             idx += 1
             if len(weights) != weight_count:
@@ -153,6 +236,10 @@ def _load_tagged(lines, idx, filename):
                 )
             biases = []
             if bias_count:
+                if idx >= len(lines):
+                    raise ValueError(
+                        f"truncated conv2d biases in {filename!r}"
+                    )
                 biases = [float(v) for v in lines[idx].split()]
                 idx += 1
                 if len(biases) != bias_count:
@@ -175,20 +262,46 @@ def _load_tagged(lines, idx, filename):
                 layers[-1]._bias = np.array(biases, dtype=float)
         elif tag in _STATELESS_LAYERS:
             factory, arg_names = _STATELESS_LAYERS[tag]
-            if arg_names and arg_names[0] in ("negative_slope", "p"):
-                args = [float(v) for v in parts[1:]]
+            if tag == "softmax":
+                dim = -1
+                if len(parts) > 1:
+                    try:
+                        dim = int(parts[1])
+                    except ValueError:
+                        raise ValueError(
+                            f"softmax dim is not an integer in {filename!r}"
+                        )
+                layers.append(factory(dim=None if dim < 0 else dim))
+            elif tag == "flatten":
+                if len(parts) not in (2, 3):
+                    raise ValueError(
+                        f"flatten layer expects 1 or 2 arguments, got "
+                        f"{len(parts) - 1} in {filename!r}"
+                    )
+                try:
+                    start_dim = int(parts[1])
+                    end_dim = int(parts[2]) if len(parts) == 3 else -1
+                except ValueError:
+                    raise ValueError(
+                        f"flatten dims are not integers in {filename!r}"
+                    )
+                layers.append(factory(start_dim=start_dim, end_dim=end_dim))
             else:
-                args = [int(v) for v in parts[1:]]
-            if len(args) != len(arg_names):
-                raise ValueError(
-                    f"{tag} layer expects {len(arg_names)} arguments, got "
-                    f"{len(args)} in {filename!r}"
-                )
-            kwargs = dict(zip(arg_names, args))
-            layers.append(factory(**kwargs) if kwargs else factory())
+                if arg_names and arg_names[0] in ("negative_slope", "p"):
+                    args = [float(v) for v in parts[1:]]
+                else:
+                    args = [int(v) for v in parts[1:]]
+                if len(args) != len(arg_names):
+                    raise ValueError(
+                        f"{tag} layer expects {len(arg_names)} arguments, got "
+                        f"{len(args)} in {filename!r}"
+                    )
+                kwargs = dict(zip(arg_names, args))
+                layers.append(factory(**kwargs) if kwargs else factory())
         else:
             raise ValueError(
                 f"unknown layer tag {tag!r} in {filename!r}"
             )
 
-    return Sequential(*layers)
+    model = Sequential(*layers)
+    return model.train(training)

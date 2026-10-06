@@ -41,9 +41,14 @@ def test_sequential_named_params():
 def test_flatten_flattens_to_one_dimension():
     from core import nn
 
+    # PyTorch semantics: start_dim=1 (default) preserves dim 0 and flattens
+    # everything after it. A (2, 3, 4) volume thus becomes (2, 12), and
+    # start_dim=0 collapses the whole thing to a single axis.
     out = nn.Flatten()(np.arange(24, dtype=float).reshape(2, 3, 4))
-    assert out.shape == (24,)
-    assert np.allclose(out, np.arange(24, dtype=float))
+    assert out.shape == (2, 12)
+    assert np.allclose(out, np.arange(24, dtype=float).reshape(2, 12))
+    out0 = nn.Flatten(start_dim=0)(np.arange(8, dtype=float).reshape(2, 2, 2))
+    assert out0.shape == (8,)
 
 
 def test_train_and_eval_reach_children():
