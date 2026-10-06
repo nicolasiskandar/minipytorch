@@ -1,5 +1,6 @@
 """Layer definitions and the :class:`Module` base."""
 
+from . import functional
 from .base import Module
 from .params import Parameter, _ArrayParameter
 from ._shape import _pair
@@ -8,6 +9,7 @@ from .containers import Sequential
 from .reshape import Flatten
 from .conv import Conv2d
 from .pool import AvgPool2d, MaxPool2d
+from .dropout import Dropout
 from .activations import (
     LeakyReLU,
     ReLU,
@@ -44,4 +46,5 @@ __all__ = [
     "Conv2d",
     "MaxPool2d",
     "AvgPool2d",
+    "Dropout",
 ]

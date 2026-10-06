@@ -13,6 +13,7 @@ CORE_ALL = [
     "MaxPool2d",
     "ReLU",
     "ReLU6",
+    "Dropout",
     "SGD",
     "Sequential",
     "Sigmoid",
@@ -66,6 +67,7 @@ NN_ALL = [
     "Parameter",
     "ReLU",
     "ReLU6",
+    "Dropout",
     "Sequential",
     "Sigmoid",
     "Softmax",
@@ -115,6 +117,7 @@ STATELESS_LAYER_TAGS = [
     "sigmoid",
     "softmax",
     "tanh",
+    "dropout",
 ]
 
 ACTIVATION_NAMES = ["leaky_relu", "relu", "relu6", "sigmoid", "tanh"]
@@ -129,6 +132,7 @@ EXPECTED_CLASS = {
     "sigmoid": "Sigmoid",
     "softmax": "Softmax",
     "tanh": "Tanh",
+    "dropout": "Dropout",
 }
 
 ARG_NAMES = {
@@ -141,6 +145,7 @@ ARG_NAMES = {
     "sigmoid": (),
     "softmax": (),
     "tanh": (),
+    "dropout": ("p",),
 }
 
 MODULE_SUBCLASSES = [
@@ -446,6 +451,7 @@ def test_every_registered_stateless_layer_round_trips():
         "maxpool2d": lambda: nn.MaxPool2d(2),
         "avgpool2d": lambda: nn.AvgPool2d(2),
         "leaky_relu": lambda: nn.LeakyReLU(negative_slope=0.25),
+        "dropout": lambda: nn.Dropout(p=0.3),
     }
     assert sorted(builders) == sorted(STATELESS_LAYER_TAGS)
 

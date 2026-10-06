@@ -33,15 +33,30 @@ class Module:
                 yield child
 
     def zero_grad(self):
+        """Clear gradients here and in every child.
+
+        Recurses rather than returning early: a bare ``return self`` leaves a
+        container's own (empty) gradients cleared while its children keep
+        theirs, so ``net.zero_grad()`` silently did nothing.
+        """
+        for child in self.children():
+            child.zero_grad()
         return self
 
     def train(self, mode=True):
+        """Set this module's mode and every child's, returning self.
+
+        Recursion is required, not cosmetic: only layers that read
+        ``training()`` care, but ``Sequential.eval()`` that leaves a nested
+        layer in training mode makes eval-mode inference stochastic.
+        """
         self._training = mode
+        for child in self.children():
+            child.train(mode)
         return self
 
     def eval(self):
-        self._training = False
-        return self
+        return self.train(False)
 
     def training(self):
         return getattr(self, "_training", True)

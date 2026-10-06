@@ -11,6 +11,7 @@ changes what ``load_model`` expects.
 
 from ..nn import (
     AvgPool2d,
+    Dropout,
     Flatten,
     LeakyReLU,
     MaxPool2d,
@@ -31,4 +32,5 @@ _STATELESS_LAYERS = {
     "maxpool2d": (MaxPool2d, ("kernel_size", "stride", "padding")),
     "avgpool2d": (AvgPool2d, ("kernel_size", "stride", "padding")),
     "leaky_relu": (LeakyReLU, ("negative_slope",)),
+    "dropout": (Dropout, ("p",)),
 }

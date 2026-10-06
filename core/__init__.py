@@ -63,4 +63,5 @@ __all__ = [
     "Conv2d",
     "MaxPool2d",
     "AvgPool2d",
+    "Dropout",
 ]

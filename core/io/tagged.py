@@ -70,6 +70,8 @@ def _save_tagged(out, layers):
                 ]
             elif tag == "leaky_relu":
                 args = [repr(float(layer.negative_slope))]
+            elif tag == "dropout":
+                args = [repr(float(getattr(layer, "p", 0.5)))]
             elif tag == "flatten":
                 args = [str(int(layer.start_dim))]
             out.write(f"{tag} {' '.join(args)}\n")
@@ -173,7 +175,7 @@ def _load_tagged(lines, idx, filename):
                 layers[-1]._bias = np.array(biases, dtype=float)
         elif tag in _STATELESS_LAYERS:
             factory, arg_names = _STATELESS_LAYERS[tag]
-            if arg_names and arg_names[0] == "negative_slope":
+            if arg_names and arg_names[0] in ("negative_slope", "p"):
                 args = [float(v) for v in parts[1:]]
             else:
                 args = [int(v) for v in parts[1:]]
