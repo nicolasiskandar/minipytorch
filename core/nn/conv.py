@@ -13,6 +13,8 @@ from .params import _ArrayParameter
 
 __all__ = ["Conv2d"]
 
+_INIT_RNG = np.random.default_rng(0)
+
 
 class Conv2d(Module):
     """2D convolution over a single (unbatched) C x H x W input.
@@ -61,8 +63,11 @@ class Conv2d(Module):
             )
         shape = (self.out_channels, self.in_channels, kh, kw)
         if weights is None:
-            rng = np.random.default_rng(0)
-            w = rng.standard_normal(shape) * (1.0 / np.sqrt(self.in_channels * kh * kw))
+            # Shared stream: same-shaped convs in one net must not start with
+            # identical weights; a fresh process is still deterministic.
+            w = _INIT_RNG.standard_normal(shape) * (
+                1.0 / np.sqrt(self.in_channels * kh * kw)
+            )
         else:
             w = np.array(weights, dtype=float).reshape(shape)
         self._weights = w

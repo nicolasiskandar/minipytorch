@@ -166,3 +166,36 @@ def test_leaky_relu_gradient_numerical():
     loss_minus, _ = loss_fn(nn.Linear(2, 2, activation='leaky_relu', weights=w_minus, bias=b)(x), y)
     numerical = central_diff(loss_plus, loss_minus)
     assert abs(numerical - layer.grad_weights()[0]) < TOL_LINEAR
+
+def test_linear_rejects_unknown_activation_string():
+    """A typo used to silently fall back to sigmoid and train the wrong function."""
+    from core import nn
+
+    try:
+        nn.Linear(2, 3, activation="relu_typo")
+        raise AssertionError("expected ValueError for unknown activation string")
+    except ValueError as e:
+        assert "relu_typo" in str(e), e
+        assert "sigmoid" in str(e), e
+
+
+def test_linear_rejects_unknown_activation_object():
+    from core import nn
+
+    class Weird:
+        pass
+
+    try:
+        nn.Linear(2, 3, activation=Weird())
+        raise AssertionError("expected ValueError for unknown activation object")
+    except ValueError as e:
+        assert "unknown activation" in str(e), e
+
+
+def test_default_linears_do_not_share_weights():
+    """Same-shaped default Linears used to start identical (fresh rng(42) each)."""
+    from core import nn
+
+    first = nn.Linear(8, 8)
+    second = nn.Linear(8, 8)
+    assert not np.allclose(first.weights(), second.weights())

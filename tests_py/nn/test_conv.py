@@ -89,3 +89,14 @@ def test_conv2d_gradient_numerical():
     lp, _ = loss_fn(conv(x_plus), y)
     lm, _ = loss_fn(conv(x_minus), y)
     assert abs(central_diff(lp, lm) - grad_in[0, 1, 1]) < TOL_WINDOW
+
+def test_default_convs_do_not_share_weights():
+    """Same-shaped default Conv2ds used to start identical (fresh rng(0) each)."""
+    from core import nn
+
+    def weight_of(conv):
+        return np.asarray(dict(conv.named_parameters())["weight"].value)
+
+    first = nn.Conv2d(1, 2, 3)
+    second = nn.Conv2d(1, 2, 3)
+    assert not np.allclose(weight_of(first), weight_of(second))

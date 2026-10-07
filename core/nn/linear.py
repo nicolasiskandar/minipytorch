@@ -8,6 +8,10 @@ from .params import Parameter
 
 __all__ = ["Linear"]
 
+_INIT_RNG = np.random.default_rng(42)
+
+_ACTIVATION_NAMES = "'sigmoid', 'tanh', 'relu', 'relu6', or 'leaky_relu'"
+
 
 class Linear(Module):
     def __init__(self, in_features, out_features, activation=None, weights=None, bias=None):
@@ -34,7 +38,10 @@ class Linear(Module):
             elif a in ("leaky_relu", "leakyrelu", "leaky"):
                 kind = ActivationKind.LEAKYRELU
             else:
-                kind = ActivationKind.SIGMOID
+                raise ValueError(
+                    f"nn.Linear unknown activation {activation!r}; "
+                    f"expected {_ACTIVATION_NAMES}"
+                )
         else:
             name = type(activation).__name__.lower()
             if "tanh" in name:
@@ -48,7 +55,12 @@ class Linear(Module):
             elif "sigmoid" in name:
                 kind = ActivationKind.SIGMOID
             else:
-                kind = ActivationKind.SIGMOID
+                raise ValueError(
+                    f"nn.Linear unknown activation {activation!r} "
+                    f"(type {type(activation).__name__}); "
+                    f"expected None, an ActivationKind, one of {_ACTIVATION_NAMES}, "
+                    f"or an activation module/class"
+                )
 
         self.activation_kind = kind
 
@@ -59,8 +71,9 @@ class Linear(Module):
             )
 
         if weights is None:
-            rng = np.random.default_rng(42)
-            w = rng.standard_normal(size=(out_features * in_features), dtype=float) * 0.1
+            w = _INIT_RNG.standard_normal(
+                size=(out_features * in_features), dtype=float
+            ) * 0.1
             weights_arr = w
         else:
             weights_arr = np.array(weights, dtype=float).reshape(-1)

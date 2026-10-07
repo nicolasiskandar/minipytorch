@@ -1,7 +1,9 @@
 """The generic container that chains other modules.
 
-Dispatch is with ``hasattr`` and never names a concrete layer, so any
-:class:`~core.nn.base.Module` can be nested in it.
+Forward dispatch is with ``hasattr`` and never names a concrete layer, so any
+:class:`~core.nn.base.Module` can be nested in it. Backward is strict: a child
+without a ``backward()`` raises instead of being silently skipped, which would
+otherwise pass the gradient straight through dead units.
 """
 
 from .base import Module
@@ -22,9 +24,13 @@ class Sequential(Module):
 
     def backward(self, dloss_dout):
         grad = dloss_dout
-        for layer in reversed(self.layers):
-            if hasattr(layer, "backward"):
-                grad = layer.backward(grad)
+        for i, layer in reversed(list(enumerate(self.layers))):
+            if not callable(getattr(layer, "backward", None)):
+                raise RuntimeError(
+                    f"Sequential.backward: layer {i} "
+                    f"({type(layer).__name__}) has no backward()"
+                )
+            grad = layer.backward(grad)
         return grad
 
     def named_children(self):

@@ -3,17 +3,16 @@
 import numpy as np
 
 
-def manual_backward(net, grad_out):
+def manual_backward(net, dloss_dout):
     """Propagate a gradient back through a Sequential.
 
-    Mirrors what a user writes by hand, including the `hasattr(layer,
-    "backward")` skip: a module without a derivative is silently dropped from
-    the chain, so any layer added here must implement backward.
+    Mirrors what a user writes by hand, including Sequential.backward's
+    strictness: every module in the chain must implement backward, so a
+    derivative-less layer raises instead of silently vanishing.
     """
-    grad = grad_out
+    grad = dloss_dout
     for layer in reversed(net.layers):
-        if hasattr(layer, "backward"):
-            grad = layer.backward(grad)
+        grad = layer.backward(grad)
     return grad
 
 

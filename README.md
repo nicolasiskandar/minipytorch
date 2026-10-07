@@ -87,7 +87,7 @@ uv pip install -p .venv/bin/python cmake pybind11   # build deps, if missing
 ## Running tests
 
 ```sh
-./run.sh test-py    # 154 Python tests (tests_py/)
+./run.sh test-py    # 159 Python tests (tests_py/)
 ./run.sh test       # 177 C++ tests (backend_cxx/tests/)
 ./run.sh test-all   # both
 ```
@@ -192,7 +192,6 @@ The format is a tagged text file (`minipytorch-v2` header) covering `Linear`,
   limitation).
 - `Linear`'s default activation is **sigmoid**, not identity, pass an
   explicit `activation` argument to change it.
-- `Sequential.backward` silently skips any child without a `backward` method.
 - The extension targets **x86-64 Linux** (the assembly kernels use GNU
   assembler syntax and the System V AMD64 ABI).
 

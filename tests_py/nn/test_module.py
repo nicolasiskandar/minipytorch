@@ -115,3 +115,22 @@ def test_train_returns_self_for_chaining():
     assert seq.train() is seq
     assert seq.eval() is seq
     assert seq.zero_grad() is seq
+
+def test_sequential_backward_rejects_missing_backward():
+    """A derivative-less child used to be silently skipped: the gradient
+    passed straight through dead units and the model trained on nonsense."""
+    import numpy as np
+
+    from core import nn
+
+    class NoBackward(nn.Module):
+        def forward(self, x):
+            return x
+
+    net = nn.Sequential(nn.Linear(2, 1), NoBackward())
+    try:
+        net.backward(np.array([1.0]))
+        raise AssertionError("expected RuntimeError for child without backward")
+    except RuntimeError as e:
+        assert "layer 1" in str(e), e
+        assert "NoBackward" in str(e), e
