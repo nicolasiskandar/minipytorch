@@ -25,17 +25,63 @@ for mod, n in ran:
 print(f"all python tests passed ({total} in {len(ran)} modules)")
 '
 
+require_venv() {
+  if [ ! -x .venv/bin/python ]; then
+    echo "error: .venv not found - run ./run.sh setup first" >&2
+    exit 1
+  fi
+}
+
 case "$1" in
+  setup)
+    if ! command -v uv >/dev/null 2>&1; then
+      echo "error: uv not found - see https://docs.astral.sh/uv/" >&2
+      exit 1
+    fi
+    if [ ! -x .venv/bin/python ]; then
+      uv venv .venv || exit 1
+    fi
+    uv pip install -p .venv/bin/python -e . || exit 1
+    echo "setup complete - try ./run.sh demo"
+    ;;
   test)
     cd backend_cxx && make test
     ;;
   test-py)
+    require_venv
     .venv/bin/python -c "$py_tests"
     ;;
   test-all)
+    require_venv
     (cd backend_cxx && make test) || exit 1
     echo "---"
     .venv/bin/python -c "$py_tests"
+    ;;
+  demo)
+    require_venv
+    .venv/bin/python demo.py
+    ;;
+  build-ext)
+    require_venv
+    CMAKE=.venv/bin/cmake
+    if [ ! -x "$CMAKE" ]; then
+      CMAKE=cmake
+    fi
+    if ! command -v "$CMAKE" >/dev/null 2>&1; then
+      echo "error: cmake not found - run: uv pip install -p .venv/bin/python cmake" >&2
+      exit 1
+    fi
+    if ! .venv/bin/python -c "import pybind11" 2>/dev/null; then
+      echo "error: pybind11 not found - run: uv pip install -p .venv/bin/python pybind11" >&2
+      exit 1
+    fi
+    pybind11_dir=$(.venv/bin/python -c "import pybind11; print(pybind11.get_cmake_dir())") || exit 1
+    "$CMAKE" -S . -B build/ext \
+      -Dpybind11_DIR="$pybind11_dir" \
+      -DPython_EXECUTABLE="$PWD/.venv/bin/python" \
+      -DCMAKE_BUILD_TYPE=Release || exit 1
+    "$CMAKE" --build build/ext -j || exit 1
+    "$CMAKE" --install build/ext --prefix "$PWD" || exit 1
     ;;
   xor)
     cd backend_cxx && make run
@@ -50,7 +96,7 @@ case "$1" in
     cd backend_cxx && make
     ;;
   *)
-    echo "Usage: ./run.sh {test|test-py|test-all|xor|circle|bench|build}"
+    echo "Usage: ./run.sh {setup|test|test-py|test-all|demo|xor|circle|bench|build|build-ext}"
     exit 1
     ;;
 esac

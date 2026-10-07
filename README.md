@@ -27,24 +27,17 @@ orchestration.
 
 ## Quick start
 
-Requirements: `uv` (or any venv tool), a C++17 compiler, `cmake`.
+Requirements: `uv`, a C++17 compiler (`g++`), `make`.
 
 ```sh
-# 1. Environment
-uv venv .venv
-uv pip install -p .venv/bin/python -r requirements.txt cmake pybind11
-
-# 2. Build the _minipytorch extension into ./core/
-.venv/bin/cmake -S . -B build/ext \
-  -Dpybind11_DIR=$(.venv/bin/python -c "import pybind11; print(pybind11.get_cmake_dir())") \
-  -DPython_EXECUTABLE="$PWD/.venv/bin/python" \
-  -DCMAKE_BUILD_TYPE=Release
-.venv/bin/cmake --build build/ext -j
-.venv/bin/cmake --install build/ext --prefix "$PWD"
-
-# 3. Run the demo
-.venv/bin/python demo.py
+./run.sh setup   # create .venv and install the package (builds the extension)
+./run.sh demo    # run the end-to-end demo
 ```
+
+`setup` runs `uv venv .venv && uv pip install -p .venv/bin/python -e .`:
+scikit-build-core compiles the C++/assembly sources in an isolated build
+environment and installs the `_minipytorch` extension into the package.
+After that, `./run.sh test-py` runs the Python suite.
 
 `demo.py` trains an MLP on XOR, runs a small CNN, and round-trips a model
 through `save_model`/`load_model`. The core loop looks like this:
@@ -68,6 +61,27 @@ for _ in range(1500):
     opt.zero_grad()                                 # grads accumulate otherwise
 
 print(net(np.array([0.0, 1.0])))                    # -> [0.997...]
+```
+
+### Building the extension manually
+
+To rebuild the extension outside of `pip`/`uv` (e.g. after changing a kernel),
+use the CMake flow directly:
+
+```sh
+uv pip install -p .venv/bin/python cmake pybind11   # build deps, if missing
+./run.sh build-ext
+```
+
+`build-ext` is equivalent to:
+
+```sh
+.venv/bin/cmake -S . -B build/ext \
+  -Dpybind11_DIR=$(.venv/bin/python -c "import pybind11; print(pybind11.get_cmake_dir())") \
+  -DPython_EXECUTABLE="$PWD/.venv/bin/python" \
+  -DCMAKE_BUILD_TYPE=Release
+.venv/bin/cmake --build build/ext -j
+.venv/bin/cmake --install build/ext --prefix "$PWD"   # installs into ./core/
 ```
 
 ## Running tests
@@ -107,7 +121,8 @@ core/                Python package (the public API)
 src_py/bindings/     pybind11 translation units (one per backend subsystem)
 tests_py/            Python test suite
 CMakeLists.txt       Builds the _minipytorch extension
-run.sh               Task runner (test, xor, circle, bench, build)
+pyproject.toml       Packaging (scikit-build-core build backend)
+run.sh               Task runner (setup, demo, test, build-ext, xor, circle, bench, build)
 demo.py              End-to-end demo
 ```
 
@@ -197,7 +212,9 @@ regression tests, and benchmark evidence in a single commit.
 
 ## Requirements
 
+- `uv` (creates the venv and performs editable installs)
 - `g++` or any C++17-capable compiler, plus `make` (C++ tests/experiments)
 - Python >= 3.9 with `numpy` (see `requirements.txt`)
-- `cmake` >= 3.15 and `pybind11` >= 2.13 for the Python extension
+- `cmake` >= 3.15 and `pybind11` >= 2.13 for building the extension by hand
+  (`./run.sh setup` fetches these automatically in its isolated build env)
 - x86-64 Linux for the assembly kernels
